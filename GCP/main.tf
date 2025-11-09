@@ -30,7 +30,7 @@ locals {
 
 # 1️⃣ Create a GCP Service Account (Read-only Access)
 resource "google_service_account" "aws_readonly_sa" {
-  account_id   = "aws-readonly-sasa"
+  account_id   = "aws-readonly-sasas"
   display_name = "AWS Read-only Access Service Account"
 }
 
@@ -43,7 +43,7 @@ resource "google_project_iam_member" "readonly_binding" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-ali"
+  workload_identity_pool_id = "aws-pool-alis"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -128,12 +128,18 @@ resource "google_storage_bucket" "function_source" {
   uniform_bucket_level_access = true
 }
 
-resource "google_storage_bucket_object" "function_archive" {
-  name   = "function.zip"
-  bucket = google_storage_bucket.function_source.name
-  source = data.archive_file.cloud_function.output_path
+resource "null_resource" "upload_function_archive" {
+  depends_on = [
+    google_storage_bucket.function_source
+  ]
 
-  content_type = "application/zip"
+  triggers = {
+    source_checksum = data.archive_file.cloud_function.output_sha
+  }
+
+  provisioner "local-exec" {
+    command = "gsutil cp ${data.archive_file.cloud_function.output_path} gs://${google_storage_bucket.function_source.name}/function.zip"
+  }
 }
 
 # Cloud Function (Gen 2) deployment equivalent to:
@@ -152,7 +158,7 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
     source {
       storage_source {
         bucket = google_storage_bucket.function_source.name
-        object = google_storage_bucket_object.function_archive.name
+        object = "function.zip"
       }
     }
   }
@@ -167,7 +173,7 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
     google_project_service.cloudfunctions,
     google_project_service.run,
     google_project_service.artifactregistry,
-    google_storage_bucket_object.function_archive,
+    null_resource.upload_function_archive,
   ]
 }
 
@@ -216,7 +222,7 @@ resource "null_resource" "cleanup_function_archive" {
   }
 
   provisioner "local-exec" {
-    command = "gsutil -m rm -r gs://${google_storage_bucket.function_source.name}/* || true"
+    command = "if gsutil ls gs://${google_storage_bucket.function_source.name}/** >/dev/null 2>&1; then gsutil -m rm -r gs://${google_storage_bucket.function_source.name}/**; fi"
   }
 }
 

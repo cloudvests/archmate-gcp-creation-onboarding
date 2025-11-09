@@ -1,0 +1,29 @@
+{
+  "name": "gcp-cloud-function-aws-trigger",
+  "version": "1.0.0",
+  "description": "GCP Cloud Function triggered by AWS Lambda to extract project info and send to AWS endpoint",
+  "main": "index.js",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "start": "functions-framework --target=extractAndSendGCPInfo",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@google-cloud/iam": "^2.3.1",
+    "axios": "^1.6.0",
+    "google-auth-library": "^9.0.0"
+  },
+  "devDependencies": {
+    "@google-cloud/functions-framework": "^3.0.0"
+  },
+  "keywords": [
+    "gcp",
+    "cloud-function",
+    "aws",
+    "lambda"
+  ],
+  "author": "",
+  "license": "ISC"
+}

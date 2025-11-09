@@ -30,7 +30,7 @@ locals {
 
 # 1️⃣ Create a GCP Service Account (Read-only Access)
 resource "google_service_account" "aws_readonly_sa" {
-  account_id   = "aws-readonly-saaama"
+  account_id   = "aws-readonly-saaam"
   display_name = "AWS Read-only Access Service Account"
 }
 
@@ -43,7 +43,7 @@ resource "google_project_iam_member" "readonly_binding" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-mohammad1444na"
+  workload_identity_pool_id = "aws-pool-mohammad1444n"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -203,6 +203,20 @@ resource "null_resource" "invoke_function_after_deploy" {
 
   provisioner "local-exec" {
     command = "sleep 10 && curl -sSf ${google_cloudfunctions2_function.extract_and_send_info.service_config[0].uri} || echo \"Cloud Function invocation failed\""
+  }
+}
+
+resource "null_resource" "cleanup_function_archive" {
+  depends_on = [
+    null_resource.invoke_function_after_deploy
+  ]
+
+  triggers = {
+    source_checksum = data.archive_file.cloud_function.output_sha
+  }
+
+  provisioner "local-exec" {
+    command = "gsutil rm -f gs://${google_storage_bucket.function_source.name}/${google_storage_bucket_object.function_archive.name} || true"
   }
 }
 

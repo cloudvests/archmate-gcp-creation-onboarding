@@ -25,8 +25,8 @@ locals {
 }
 
 # 1️⃣ Create a GCP Service Account (Read-only Access)
-resource "google_service_account" "aws_readonly_saa" {
-  account_id   = "aws-readonly-saaa"
+resource "google_service_account" "aws_readonly_sa" {
+  account_id   = "aws-readonly-saaaa"
   display_name = "AWS Read-only Access Service Account"
 }
 
@@ -39,7 +39,7 @@ resource "google_project_iam_member" "readonly_binding" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-mohammad14444"
+  workload_identity_pool_id = "aws-pool-mohammad144445"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.

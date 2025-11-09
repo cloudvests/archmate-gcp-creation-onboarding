@@ -28,9 +28,11 @@ locals {
   cloud_function_source_dir = abspath(var.cloud_function_source_dir)
 }
 
+data "google_client_config" "current" {}
+
 # 1️⃣ Create a GCP Service Account (Read-only Access)
 resource "google_service_account" "aws_readonly_sa" {
-  account_id   = "aws-readonly-sasas"
+  account_id   = "aws-readonly-sasasaa"
   display_name = "AWS Read-only Access Service Account"
 }
 
@@ -43,7 +45,7 @@ resource "google_project_iam_member" "readonly_binding" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-alis"
+  workload_identity_pool_id = "aws-pool-alisss"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -128,18 +130,12 @@ resource "google_storage_bucket" "function_source" {
   uniform_bucket_level_access = true
 }
 
-resource "null_resource" "upload_function_archive" {
-  depends_on = [
-    google_storage_bucket.function_source
-  ]
+resource "google_storage_bucket_object" "function_archive" {
+  name   = "function.zip"
+  bucket = google_storage_bucket.function_source.name
+  source = data.archive_file.cloud_function.output_path
 
-  triggers = {
-    source_checksum = data.archive_file.cloud_function.output_sha
-  }
-
-  provisioner "local-exec" {
-    command = "gsutil cp ${data.archive_file.cloud_function.output_path} gs://${google_storage_bucket.function_source.name}/function.zip"
-  }
+  content_type = "application/zip"
 }
 
 # Cloud Function (Gen 2) deployment equivalent to:
@@ -158,7 +154,7 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
     source {
       storage_source {
         bucket = google_storage_bucket.function_source.name
-        object = "function.zip"
+        object = google_storage_bucket_object.function_archive.name
       }
     }
   }
@@ -173,7 +169,7 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
     google_project_service.cloudfunctions,
     google_project_service.run,
     google_project_service.artifactregistry,
-    null_resource.upload_function_archive,
+    google_storage_bucket_object.function_archive,
   ]
 }
 
@@ -222,7 +218,16 @@ resource "null_resource" "cleanup_function_archive" {
   }
 
   provisioner "local-exec" {
-    command = "if gsutil ls gs://${google_storage_bucket.function_source.name}/** >/dev/null 2>&1; then gsutil -m rm -r gs://${google_storage_bucket.function_source.name}/**; fi"
+    environment = {
+      ACCESS_TOKEN = data.google_client_config.current.access_token
+    }
+
+    command = <<-EOT
+      curl -sfS -X DELETE \
+        -H "Authorization: Bearer $ACCESS_TOKEN" \
+        "https://storage.googleapis.com/storage/v1/b/${google_storage_bucket.function_source.name}/o/function.zip" \
+        || true
+    EOT
   }
 }
 

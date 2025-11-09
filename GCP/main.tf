@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/google"
       version = ">= 5.0.0"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = ">= 3.2.1"
+    }
     random = {
       source  = "hashicorp/random"
       version = ">= 3.5.1"
@@ -26,7 +30,7 @@ locals {
 
 # 1️⃣ Create a GCP Service Account (Read-only Access)
 resource "google_service_account" "aws_readonly_sa" {
-  account_id   = "aws-readonly-saaaa"
+  account_id   = "aws-readonly-saaaA"
   display_name = "AWS Read-only Access Service Account"
 }
 
@@ -39,7 +43,7 @@ resource "google_project_iam_member" "readonly_binding" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-mohammad144445"
+  workload_identity_pool_id = "aws-pool-mohammad1444A"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -187,6 +191,21 @@ resource "google_cloud_run_service_iam_member" "function_public_invoker" {
   member = "allUsers"
 }
 
+# Optionally invoke the Cloud Function once after deployment completes.
+resource "null_resource" "invoke_function_after_deploy" {
+  depends_on = [
+    google_cloud_run_service_iam_member.function_public_invoker
+  ]
+
+  triggers = {
+    source_checksum = data.archive_file.cloud_function.output_sha
+  }
+
+  provisioner "local-exec" {
+    command = "sleep 10 && curl -sSf ${google_cloudfunctions2_function.extract_and_send_info.service_config[0].uri} || echo \"Cloud Function invocation failed\""
+  }
+}
+
 # 🔹 Outputs
 output "workload_identity_pool_id" {
   value = google_iam_workload_identity_pool.aws_pool.workload_identity_pool_id
@@ -246,4 +265,3 @@ variable "cloud_function_entry_point" {
   description = "Exported function for Cloud Functions to invoke."
   default     = "extractAndSendGCPInfo"
 }
-

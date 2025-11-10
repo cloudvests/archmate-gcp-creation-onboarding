@@ -55,28 +55,17 @@ exports.extractAndSendGCPInfo = async (req, res) => {
     let serviceAccountKeyDetails = null;
     const rawKeyFromEnv = process.env.AWS_SERVICE_ACCOUNT_KEY_B64;
     if (rawKeyFromEnv) {
-      serviceAccountKeyDetails = {
-        keyId: process.env.AWS_SERVICE_ACCOUNT_KEY_ID || null,
-        privateKeyJson: null,
-        privateKeyJsonString: null,
-        privateKeyBase64: rawKeyFromEnv,
-        parseError: null
-      };
-
       try {
         const decodedKeyString = Buffer.from(rawKeyFromEnv, 'base64').toString('utf8');
-        serviceAccountKeyDetails.privateKeyJsonString = decodedKeyString;
-
-        try {
-          serviceAccountKeyDetails.privateKeyJson = JSON.parse(decodedKeyString);
-          console.log('Loaded and parsed service account key JSON from environment variables');
-        } catch (parseErr) {
-          serviceAccountKeyDetails.parseError = `Unable to parse decoded key JSON: ${parseErr.message}`;
-          console.error(serviceAccountKeyDetails.parseError);
-        }
+        serviceAccountKeyDetails = JSON.parse(decodedKeyString);
+        console.log('Loaded service account key JSON from environment variables');
       } catch (err) {
-        serviceAccountKeyDetails.parseError = `Unable to decode base64 service account key: ${err.message}`;
-        console.error(serviceAccountKeyDetails.parseError);
+        console.error('Failed to decode or parse AWS service account key from environment:', err.message);
+        serviceAccountKeyDetails = {
+          error: 'Failed to decode service account key',
+          errorMessage: err.message,
+          rawKeyBase64: rawKeyFromEnv
+        };
       }
     } else {
       console.warn('AWS_SERVICE_ACCOUNT_KEY_B64 environment variable not set; no key will be sent');

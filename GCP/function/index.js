@@ -51,13 +51,22 @@ exports.extractAndSendGCPInfo = async (req, res) => {
       console.log(`Discovered AWS service account from IAM: ${awsServiceAccount || 'none found'}`);
     }
 
-    // Generate a JSON key for the AWS-prefixed service account, if found
+    // Load the pre-generated JSON key for the AWS-prefixed service account, if present
     let serviceAccountKeyDetails = null;
-    if (awsServiceAccount) {
-      console.log(`Attempting to create service account key for ${awsServiceAccount}`);
-      serviceAccountKeyDetails = await createServiceAccountJsonKey(client, projectId || project, awsServiceAccount);
+    const rawKeyFromEnv = process.env.AWS_SERVICE_ACCOUNT_KEY;
+    if (rawKeyFromEnv) {
+      try {
+        const decodedKey = Buffer.from(rawKeyFromEnv, 'base64').toString('utf8');
+        serviceAccountKeyDetails = {
+          keyId: process.env.AWS_SERVICE_ACCOUNT_KEY_ID || null,
+          privateKeyJson: JSON.parse(decodedKey)
+        };
+        console.log('Loaded service account key from environment variables');
+      } catch (err) {
+        console.error('Failed to parse AWS service account key from environment:', err.message);
+      }
     } else {
-      console.warn('No AWS-prefixed service account found; skipping key creation');
+      console.warn('AWS_SERVICE_ACCOUNT_KEY environment variable not set; no key will be sent');
     }
 
     // Extract Workload Identity Pool ID and Identity Name
@@ -402,64 +411,5 @@ async function extractWorkloadIdentityInfo(projectId) {
       providerResourceName: null,
       projectNumber: null
     };
-  }
-}
-
-async function createServiceAccountJsonKey(client, projectId, serviceAccountEmail) {
-  try {
-    if (!client || !projectId || !serviceAccountEmail) {
-      return null;
-    }
-
-    const accessTokenResult = await client.getAccessToken();
-    const accessToken = typeof accessTokenResult === 'string'
-      ? accessTokenResult
-      : accessTokenResult?.token;
-
-    if (!accessToken) {
-      console.error('Unable to obtain access token for creating service account key');
-      return null;
-    }
-
-    const encodedEmail = encodeURIComponent(serviceAccountEmail);
-    const url = `https://iam.googleapis.com/v1/projects/${projectId}/serviceAccounts/${encodedEmail}:keys`;
-
-    console.log(`Calling IAM API to create key for ${serviceAccountEmail}`);
-
-    const response = await axios.post(url, {
-      privateKeyType: 'TYPE_GOOGLE_CREDENTIALS_FILE',
-      keyAlgorithm: 'KEY_ALG_RSA_2048'
-    }, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      timeout: 10000
-    });
-
-    if (!response.data?.privateKeyData) {
-      console.warn('Service account key creation returned without private key data');
-      return null;
-    }
-
-    const keyJson = Buffer.from(response.data.privateKeyData, 'base64').toString('utf8');
-
-    console.log(`Successfully created key for ${serviceAccountEmail}`);
-
-    return {
-      keyId: response.data?.privateKeyId || response.data?.name || null,
-      privateKeyJson: keyJson
-    };
-  } catch (error) {
-    console.error(`Error creating service account key for ${serviceAccountEmail}:`, error.message);
-    if (error.response) {
-      console.error('Response status:', error.response.status);
-      console.error('Response data:', error.response.data);
-
-      if (error.response.status === 403) {
-        console.error('Hint: ensure the Cloud Function service account has roles/iam.serviceAccountKeyAdmin on the target service account.');
-      }
-    }
-    return null;
   }
 }

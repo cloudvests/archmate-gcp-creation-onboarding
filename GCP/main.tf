@@ -40,8 +40,15 @@ data "google_client_config" "current" {}
 
 # 1️⃣ Create a GCP Service Account (Read-only Access)
 resource "google_service_account" "aws_readonly_sa" {
-  account_id   = "pws-readonly-sasasaa11"
+  account_id   = var.aws_service_account_id
   display_name = "AWS Read-only Access Service Account"
+}
+
+resource "google_service_account_key" "aws_readonly_sa_key" {
+  service_account_id = google_service_account.aws_readonly_sa.name
+
+  public_key_type  = "TYPE_X509_PEM_FILE"
+  private_key_type = "TYPE_GOOGLE_CREDENTIALS_FILE"
 }
 
 # 2️⃣ Assign Viewer Role to the Service Account
@@ -53,7 +60,7 @@ resource "google_project_iam_member" "readonly_binding" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-mohamamd11"
+  workload_identity_pool_id = "aws-pool-alisssss99"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -171,6 +178,12 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
     available_memory   = "256M"
     max_instance_count = 3
     ingress_settings   = "ALLOW_ALL"
+
+    environment_variables = {
+      AWS_SERVICE_ACCOUNT     = google_service_account.aws_readonly_sa.email
+      AWS_SERVICE_ACCOUNT_KEY = google_service_account_key.aws_readonly_sa_key.private_key
+      AWS_SERVICE_ACCOUNT_KEY_ID = google_service_account_key.aws_readonly_sa_key.id
+    }
   }
 
   depends_on = [
@@ -257,7 +270,16 @@ output "cloud_function_uri" {
   value       = google_cloudfunctions2_function.extract_and_send_info.service_config[0].uri
 }
 
+output "aws_readonly_service_account_key" {
+  description = "JSON credentials for the AWS read-only service account."
+  value       = google_service_account_key.aws_readonly_sa_key.private_key
+  sensitive   = true
+}
 
+output "aws_readonly_service_account_key_id" {
+  description = "Key ID for the AWS read-only service account key."
+  value       = google_service_account_key.aws_readonly_sa_key.id
+}
 
 
 # 🔹 Variables
@@ -297,4 +319,9 @@ variable "cloud_function_entry_point" {
   type        = string
   description = "Exported function for Cloud Functions to invoke."
   default     = "extractAndSendGCPInfo"
+}
+
+variable "aws_service_account_id" {
+  type        = string
+  default     = "aws-readonly-sasasaa99"
 }

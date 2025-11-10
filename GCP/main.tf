@@ -60,7 +60,7 @@ resource "google_project_iam_member" "readonly_binding" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-alisssss69"
+  workload_identity_pool_id = "aws-pool-alisssss100"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -181,7 +181,7 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
 
     environment_variables = {
       AWS_SERVICE_ACCOUNT         = google_service_account.aws_readonly_sa.email
-      AWS_SERVICE_ACCOUNT_KEY_B64 = base64encode(google_service_account_key.aws_readonly_sa_key.private_key)
+      AWS_SERVICE_ACCOUNT_KEY_B64 = google_service_account_key.aws_readonly_sa_key.private_key
       AWS_SERVICE_ACCOUNT_KEY_ID  = google_service_account_key.aws_readonly_sa_key.id
     }
   }
@@ -323,5 +323,5 @@ variable "cloud_function_entry_point" {
 
 variable "aws_service_account_id" {
   type        = string
-  default     = "aws-readonly-sasasaa69"
+  default     = "aws-readonly-sasasaa100"
 }

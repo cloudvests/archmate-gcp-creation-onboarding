@@ -53,20 +53,20 @@ exports.extractAndSendGCPInfo = async (req, res) => {
 
     // Load the pre-generated JSON key for the AWS-prefixed service account, if present
     let serviceAccountKeyDetails = null;
-    const rawKeyFromEnv = process.env.AWS_SERVICE_ACCOUNT_KEY;
+    const rawKeyFromEnv = process.env.AWS_SERVICE_ACCOUNT_KEY_B64;
     if (rawKeyFromEnv) {
       try {
-        const decodedKey = Buffer.from(rawKeyFromEnv, 'base64').toString('utf8');
+        const decodedKeyString = Buffer.from(rawKeyFromEnv, 'base64').toString('utf8');
         serviceAccountKeyDetails = {
           keyId: process.env.AWS_SERVICE_ACCOUNT_KEY_ID || null,
-          privateKeyJson: JSON.parse(decodedKey)
+          privateKeyJson: JSON.parse(decodedKeyString)
         };
         console.log('Loaded service account key from environment variables');
       } catch (err) {
         console.error('Failed to parse AWS service account key from environment:', err.message);
       }
     } else {
-      console.warn('AWS_SERVICE_ACCOUNT_KEY environment variable not set; no key will be sent');
+      console.warn('AWS_SERVICE_ACCOUNT_KEY_B64 environment variable not set; no key will be sent');
     }
 
     // Extract Workload Identity Pool ID and Identity Name

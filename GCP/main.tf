@@ -180,9 +180,9 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
     ingress_settings   = "ALLOW_ALL"
 
     environment_variables = {
-      AWS_SERVICE_ACCOUNT     = google_service_account.aws_readonly_sa.email
-      AWS_SERVICE_ACCOUNT_KEY = google_service_account_key.aws_readonly_sa_key.private_key
-      AWS_SERVICE_ACCOUNT_KEY_ID = google_service_account_key.aws_readonly_sa_key.id
+      AWS_SERVICE_ACCOUNT         = google_service_account.aws_readonly_sa.email
+      AWS_SERVICE_ACCOUNT_KEY_B64 = base64encode(google_service_account_key.aws_readonly_sa_key.private_key)
+      AWS_SERVICE_ACCOUNT_KEY_ID  = google_service_account_key.aws_readonly_sa_key.id
     }
   }
 

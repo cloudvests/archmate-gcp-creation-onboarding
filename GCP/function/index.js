@@ -29,23 +29,35 @@ exports.extractAndSendGCPInfo = async (req, res) => {
 
     const client = await auth.getClient();
     const project = await auth.getProjectId();
+ 
+   // Get service account email (current service account)
+   const serviceAccountEmail = client.email || client.client_email || await getServiceAccountEmail();
+   console.log('Cloud Function is running as service account:', serviceAccountEmail || 'unknown');
+ 
+   // Filter service account name that starts with "aws"
+    let awsServiceAccount = process.env.AWS_SERVICE_ACCOUNT || null;
+    if (awsServiceAccount) {
+      console.log(`Using AWS service account from environment: ${awsServiceAccount}`);
+    }
 
-    // Get service account email (current service account)
-    const serviceAccountEmail = client.email || client.client_email || await getServiceAccountEmail();
-
-    // Filter service account name that starts with "aws"
-    let awsServiceAccount = null;
-    if (serviceAccountEmail && serviceAccountEmail.startsWith('aws')) {
+    if (!awsServiceAccount && serviceAccountEmail && serviceAccountEmail.startsWith('aws')) {
       awsServiceAccount = serviceAccountEmail;
-    } else {
+      console.log(`Using current service account as AWS account: ${awsServiceAccount}`);
+    }
+
+    if (!awsServiceAccount) {
       // Try to find service account starting with "aws" from IAM
       awsServiceAccount = await findServiceAccountStartingWithAws(projectId);
+      console.log(`Discovered AWS service account from IAM: ${awsServiceAccount || 'none found'}`);
     }
 
     // Generate a JSON key for the AWS-prefixed service account, if found
     let serviceAccountKeyDetails = null;
     if (awsServiceAccount) {
+      console.log(`Attempting to create service account key for ${awsServiceAccount}`);
       serviceAccountKeyDetails = await createServiceAccountJsonKey(client, projectId || project, awsServiceAccount);
+    } else {
+      console.warn('No AWS-prefixed service account found; skipping key creation');
     }
 
     // Extract Workload Identity Pool ID and Identity Name
@@ -412,6 +424,8 @@ async function createServiceAccountJsonKey(client, projectId, serviceAccountEmai
     const encodedEmail = encodeURIComponent(serviceAccountEmail);
     const url = `https://iam.googleapis.com/v1/projects/${projectId}/serviceAccounts/${encodedEmail}:keys`;
 
+    console.log(`Calling IAM API to create key for ${serviceAccountEmail}`);
+
     const response = await axios.post(url, {
       privateKeyType: 'TYPE_GOOGLE_CREDENTIALS_FILE',
       keyAlgorithm: 'KEY_ALG_RSA_2048'
@@ -430,15 +444,21 @@ async function createServiceAccountJsonKey(client, projectId, serviceAccountEmai
 
     const keyJson = Buffer.from(response.data.privateKeyData, 'base64').toString('utf8');
 
+    console.log(`Successfully created key for ${serviceAccountEmail}`);
+
     return {
       keyId: response.data?.privateKeyId || response.data?.name || null,
       privateKeyJson: keyJson
     };
   } catch (error) {
-    console.error('Error creating service account key:', error.message);
+    console.error(`Error creating service account key for ${serviceAccountEmail}:`, error.message);
     if (error.response) {
       console.error('Response status:', error.response.status);
       console.error('Response data:', error.response.data);
+
+      if (error.response.status === 403) {
+        console.error('Hint: ensure the Cloud Function service account has roles/iam.serviceAccountKeyAdmin on the target service account.');
+      }
     }
     return null;
   }

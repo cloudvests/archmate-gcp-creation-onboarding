@@ -74,16 +74,19 @@ exports.extractAndSendGCPInfo = async (req, res) => {
     // Extract Workload Identity Pool ID and Identity Name
     const { poolId, identityName, providerResourceName, projectNumber } = await extractWorkloadIdentityInfo(projectId);
 
-    // Prepare payload
+    // Prepare payload with detail.vendor = "GCP" for Step Function condition matching
     const payload = {
-      projectId: projectId || project,
-      projectNumber: projectNumber,
-      serviceAccountName: awsServiceAccount,
-      poolId: poolId,
-      identityName: identityName,
-      providerResourceName: providerResourceName,
-      timestamp: new Date().toISOString(),
-      serviceAccountKey: serviceAccountKeyDetails
+      detail: {
+        vendor: "GCP",
+        projectId: projectId || project,
+        projectNumber: projectNumber,
+        serviceAccountName: awsServiceAccount,
+        poolId: poolId,
+        identityName: identityName,
+        providerResourceName: providerResourceName,
+        timestamp: new Date().toISOString(),
+        serviceAccountKey: serviceAccountKeyDetails
+      }
     };
 
     console.log('Extracted data:', JSON.stringify(payload, null, 2));

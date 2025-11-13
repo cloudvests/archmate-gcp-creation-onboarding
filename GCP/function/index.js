@@ -117,7 +117,7 @@ exports.extractAndSendGCPInfo = async (req, res) => {
       }
     } else if (!urlHasPath) {
       // Only add default path if URL doesn't already have a path
-      awsEndpoint = awsEndpoint + '/dev';
+      awsEndpoint = awsEndpoint + '/dev/dev';
     }
     // If URL already has a path and AWS_ENDPOINT_PATH is not set, use URL as-is
     

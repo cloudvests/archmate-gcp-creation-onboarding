@@ -93,7 +93,7 @@ exports.extractAndSendGCPInfo = async (req, res) => {
 
     // Send to AWS endpoint
     // Get AWS endpoint from environment variable - can be full URL or base URL
-    let awsEndpoint = process.env.AWS_ENDPOINT || 'https://ervtkcmhp7.execute-api.eu-central-1.amazonaws.com';
+    let awsEndpoint = process.env.AWS_ENDPOINT || 'https://zspu86b2d7.execute-api.eu-central-1.amazonaws.com';
     
     // Check if URL already contains a path
     let urlHasPath = awsEndpoint.includes('/', 8); // Check if there's a '/' after 'https://'
@@ -120,7 +120,7 @@ exports.extractAndSendGCPInfo = async (req, res) => {
       }
     } else if (!urlHasPath) {
       // Only add default path if URL doesn't already have a path
-      awsEndpoint = awsEndpoint + '/dev/dev';
+      awsEndpoint = awsEndpoint + '/dev/run-assessment';
     }
     // If URL already has a path and AWS_ENDPOINT_PATH is not set, use URL as-is
     

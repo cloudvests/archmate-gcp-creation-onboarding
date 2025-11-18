@@ -96,31 +96,16 @@ exports.extractAndSendGCPInfo = async (req, res) => {
 
     // Send to AWS endpoint
     // Get AWS endpoint from environment variable - can be full URL or base URL
-    let awsEndpoint = process.env.AWS_ENDPOINT || 'https://zspu86b2d7.execute-api.eu-central-1.amazonaws.com';
+    const endpointBase = process.env.AWS_ENDPOINT || 'https://zspu86b2d7.execute-api.eu-central-1.amazonaws.com';
+    const endpointPath = (process.env.AWS_ENDPOINT_PATH || '').trim();
+    let awsEndpoint = endpointBase;
     
     // Check if URL already contains a path
     let urlHasPath = awsEndpoint.includes('/', 8); // Check if there's a '/' after 'https://'
     
     // If AWS_ENDPOINT_PATH is explicitly set, use it (override any existing path)
-    if (process.env.AWS_ENDPOINT_PATH) {
-      // Parse base URL and append the specified path
-      try {
-        const urlObj = new URL(awsEndpoint);
-        const baseUrl = `${urlObj.protocol}//${urlObj.hostname}${urlObj.port ? ':' + urlObj.port : ''}`;
-        const path = process.env.AWS_ENDPOINT_PATH.startsWith('/') 
-          ? process.env.AWS_ENDPOINT_PATH 
-          : '/' + process.env.AWS_ENDPOINT_PATH;
-        awsEndpoint = baseUrl + path;
-      } catch (e) {
-        // If URL parsing fails, try manual extraction
-        const match = awsEndpoint.match(/^(https?:\/\/[^\/]+)/);
-        if (match) {
-          const newPath = process.env.AWS_ENDPOINT_PATH.startsWith('/') 
-            ? process.env.AWS_ENDPOINT_PATH 
-            : '/' + process.env.AWS_ENDPOINT_PATH;
-          awsEndpoint = match[1] + newPath;
-        }
-      }
+    if (endpointPath) {
+      awsEndpoint = buildEndpointWithPath(endpointBase, endpointPath);
     } else if (!urlHasPath) {
       // Only add default path if URL doesn't already have a path
       awsEndpoint = awsEndpoint + '/dev/run-assessment';
@@ -392,6 +377,24 @@ function decodeJwtPayload(token) {
   }
   const payload = Buffer.from(parts[1], 'base64').toString('utf8');
   return JSON.parse(payload);
+}
+
+/**
+ * Safely combine base endpoint URL with a desired path.
+ */
+function buildEndpointWithPath(baseUrl, desiredPath) {
+  const normalizedPath = desiredPath.startsWith('/') ? desiredPath : `/${desiredPath}`;
+
+  try {
+    const urlObj = new URL(baseUrl);
+    return `${urlObj.protocol}//${urlObj.hostname}${urlObj.port ? ':' + urlObj.port : ''}${normalizedPath}`;
+  } catch (err) {
+    const match = baseUrl.match(/^(https?:\/\/[^\/]+)/);
+    if (match) {
+      return match[1] + normalizedPath;
+    }
+    return baseUrl + normalizedPath;
+  }
 }
 
 /**

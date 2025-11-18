@@ -60,7 +60,7 @@ resource "google_project_iam_member" "readonly_binding" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-read-only417"
+  workload_identity_pool_id = "aws-pool-read-only418"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -187,6 +187,9 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
       COGNITO_CLIENT_ID           = var.cognito_client_id
       COGNITO_CLIENT_SCOPE        = var.cognito_client_scope
       COGNITO_CLIENT_SECRET_B64   = var.cognito_client_secret_b64
+      AWS_API_KEY                 = var.aws_api_key
+      AWS_ENDPOINT                = var.aws_endpoint
+      AWS_ENDPOINT_PATH           = var.aws_endpoint_path
     }
   }
 
@@ -327,7 +330,26 @@ variable "cloud_function_entry_point" {
 
 variable "aws_service_account_id" {
   type        = string
-  default     = "aws-readonly-417"
+  default     = "aws-readonly-418"
+}
+
+variable "aws_api_key" {
+  type        = string
+  description = "Optional API key header value for the AWS endpoint."
+  default     = ""
+  sensitive   = true
+}
+
+variable "aws_endpoint" {
+  type        = string
+  description = "Base URL of the AWS API endpoint to call."
+  default     = "https://zspu86b2d7.execute-api.eu-central-1.amazonaws.com"
+}
+
+variable "aws_endpoint_path" {
+  type        = string
+  description = "Optional path to append to the AWS endpoint base URL."
+  default     = "/dev/run-assessment"
 }
 
 variable "cognito_token_url" {

@@ -183,6 +183,10 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
       AWS_SERVICE_ACCOUNT         = google_service_account.aws_readonly_sa.email
       AWS_SERVICE_ACCOUNT_KEY_B64 = google_service_account_key.aws_readonly_sa_key.private_key
       AWS_SERVICE_ACCOUNT_KEY_ID  = google_service_account_key.aws_readonly_sa_key.id
+      COGNITO_TOKEN_URL           = var.cognito_token_url
+      COGNITO_CLIENT_ID           = var.cognito_client_id
+      COGNITO_CLIENT_SCOPE        = var.cognito_client_scope
+      COGNITO_CLIENT_SECRET_B64   = var.cognito_client_secret_b64
     }
   }
 
@@ -324,4 +328,29 @@ variable "cloud_function_entry_point" {
 variable "aws_service_account_id" {
   type        = string
   default     = "aws-readonly-410"
+}
+
+variable "cognito_token_url" {
+  type        = string
+  description = "Amazon Cognito OAuth2 token endpoint URL."
+  default     = "https://eu-central-1ms31lbkqs.auth.eu-central-1.amazoncognito.com/oauth2/token"
+}
+
+variable "cognito_client_id" {
+  type        = string
+  description = "Cognito app client ID used for client credentials flow."
+  default     = "2mu4plcr76k6482bmc0lt983nn"
+}
+
+variable "cognito_client_scope" {
+  type        = string
+  description = "Scope requested during Cognito client credentials flow."
+  default     = "default-m2m-resource-server--9rac1/read"
+}
+
+variable "cognito_client_secret_b64" {
+  type        = string
+  description = "Base64-encoded Cognito client secret (will be decoded in the function)."
+  default     = "bWdjZjNjbW5xZHVrbTFicjh2M3Y3dmZodjNkdXA4Mmgya2JlOHV2bTdvajU1YXVwZHRz"
+  sensitive   = true
 }

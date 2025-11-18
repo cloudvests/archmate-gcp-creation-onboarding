@@ -89,6 +89,9 @@ exports.extractAndSendGCPInfo = async (req, res) => {
       }
     };
 
+    // Fetch Cognito access token for downstream AWS API authorization
+    const cognitoAccessToken = await getCognitoAccessToken();
+
     console.log('Extracted data:', JSON.stringify(payload, null, 2));
 
     // Send to AWS endpoint
@@ -133,9 +136,7 @@ exports.extractAndSendGCPInfo = async (req, res) => {
     // First try the configured/default endpoint
     try {
       const response = await axios.post(awsEndpoint, payload, {
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers: getAwsRequestHeaders(cognitoAccessToken),
         timeout: 10000
       });
 
@@ -173,9 +174,7 @@ exports.extractAndSendGCPInfo = async (req, res) => {
           
           try {
             const altResponse = await axios.post(altEndpoint, payload, {
-              headers: {
-                'Content-Type': 'application/json'
-              },
+              headers: getAwsRequestHeaders(cognitoAccessToken),
               timeout: 10000
             });
             
@@ -248,6 +247,70 @@ async function getProjectIdFromMetadata() {
     console.error('Error getting project ID from metadata:', error.message);
     return null;
   }
+}
+
+/**
+ * Retrieve Cognito OAuth2 token using the client credentials flow.
+ */
+async function getCognitoAccessToken() {
+  const tokenUrl = process.env.COGNITO_TOKEN_URL;
+  const clientId = process.env.COGNITO_CLIENT_ID;
+  const scope = process.env.COGNITO_CLIENT_SCOPE;
+  const secretB64 = process.env.COGNITO_CLIENT_SECRET_B64;
+
+  if (!tokenUrl || !clientId || !secretB64) {
+    throw new Error('Missing Cognito OAuth configuration (token URL, client ID, or secret).');
+  }
+
+  let clientSecret;
+  try {
+    clientSecret = Buffer.from(secretB64, 'base64').toString('utf8');
+  } catch (err) {
+    throw new Error(`Failed to decode Cognito client secret: ${err.message}`);
+  }
+
+  try {
+    const params = new URLSearchParams({
+      grant_type: 'client_credentials',
+      client_id: clientId,
+      client_secret: clientSecret
+    });
+
+    if (scope) {
+      params.append('scope', scope);
+    }
+
+    const response = await axios.post(tokenUrl, params.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      timeout: 10000
+    });
+
+    if (!response.data || !response.data.access_token) {
+      throw new Error('Cognito token response missing access_token');
+    }
+
+    return response.data.access_token;
+  } catch (err) {
+    console.error('Failed to obtain Cognito token:', err.response?.data || err.message);
+    throw new Error(`Unable to obtain Cognito access token: ${err.message}`);
+  }
+}
+
+/**
+ * Build headers for requests to the AWS endpoint.
+ */
+function getAwsRequestHeaders(accessToken) {
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  return headers;
 }
 
 /**

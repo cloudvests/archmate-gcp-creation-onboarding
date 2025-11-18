@@ -244,13 +244,26 @@ exports.extractAndSendGCPInfo = async (req, res) => {
       }
     }
     
-    // If all attempts failed, return error
+    // If all attempts failed, return error with diagnostic info
+    const headersSent = lastError?.config?.headers || {};
     const errorDetails = {
       message: lastError?.message || 'Failed to send to AWS endpoint',
       endpoint: awsEndpoint,
       statusCode: lastError?.response?.status,
       statusText: lastError?.response?.statusText,
       responseData: lastError?.response?.data,
+      diagnostics: {
+        cognitoTokenObtained: cognitoAuth ? !!cognitoAuth.token : false,
+        tokenPreview: cognitoAuth?.token ? cognitoAuth.token.substring(0, 30) + '...' : 'NO TOKEN',
+        authorizationHeaderPresent: !!(headersSent['Authorization'] || headersSent['authorization']),
+        authorizationHeaderPreview: (headersSent['Authorization'] || headersSent['authorization'] || '').substring(0, 50) + '...',
+        apiKeyPresent: !!(headersSent['x-api-key'] || headersSent['X-Api-Key']),
+        requestHeaders: {
+          'Content-Type': headersSent['Content-Type'] || headersSent['content-type'],
+          'Authorization': headersSent['Authorization'] || headersSent['authorization'] ? 'PRESENT' : 'MISSING',
+          'x-api-key': headersSent['x-api-key'] || headersSent['X-Api-Key'] ? 'PRESENT' : 'MISSING'
+        }
+      },
       suggestion: 'The endpoint might not accept POST requests. Please configure your API Gateway to accept POST on this route, or use a different endpoint that accepts POST requests.'
     };
     
@@ -327,6 +340,7 @@ async function getCognitoAccessToken(options = {}) {
     console.log('Requesting Cognito token from:', tokenUrl);
     console.log('Using client_id:', clientId);
     console.log('Using scope:', scope || 'none');
+    console.log('Request body (sanitized):', `grant_type=client_credentials&client_id=${clientId}&client_secret=***&scope=${scope || ''}`);
     
     const response = await axios.post(tokenUrl, params.toString(), {
       headers: {
@@ -334,6 +348,8 @@ async function getCognitoAccessToken(options = {}) {
       },
       timeout: 10000
     });
+    
+    console.log('Cognito token response status:', response.status);
 
     if (!response.data || !response.data.access_token) {
       throw new Error('Cognito token response missing access_token');

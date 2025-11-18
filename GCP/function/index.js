@@ -90,7 +90,7 @@ exports.extractAndSendGCPInfo = async (req, res) => {
     };
 
     // Fetch Cognito access token for downstream AWS API authorization
-    let cognitoAccessToken = await getCognitoAccessToken();
+    let cognitoAuth = await getCognitoAccessToken();
 
     console.log('Extracted data:', JSON.stringify(payload, null, 2));
 
@@ -135,7 +135,7 @@ exports.extractAndSendGCPInfo = async (req, res) => {
     
     // Helper to send payload to a specific endpoint with the current token
     const postToAws = (endpoint) => axios.post(endpoint, payload, {
-      headers: getAwsRequestHeaders(cognitoAccessToken),
+      headers: getAwsRequestHeaders(cognitoAuth),
       timeout: 10000
     });
 
@@ -161,7 +161,7 @@ exports.extractAndSendGCPInfo = async (req, res) => {
       if (awsError.response?.status === 401) {
         console.warn('Received 401 from AWS endpoint; refreshing Cognito token and retrying once.');
         try {
-          cognitoAccessToken = await getCognitoAccessToken({ forceRefresh: true });
+          cognitoAuth = await getCognitoAccessToken({ forceRefresh: true });
           const retryResponse = await postToAws(awsEndpoint);
           console.log('Successfully sent to AWS endpoint after token refresh:', retryResponse.status);
 
@@ -282,17 +282,15 @@ async function getCognitoAccessToken(options = {}) {
   const tokenUrl = process.env.COGNITO_TOKEN_URL;
   const clientId = process.env.COGNITO_CLIENT_ID;
   const scope = process.env.COGNITO_CLIENT_SCOPE;
-  const secretB64 = process.env.COGNITO_CLIENT_SECRET_B64;
+  const secretFromEnv = process.env.COGNITO_CLIENT_SECRET_B64;
 
-  if (!tokenUrl || !clientId || !secretB64) {
+  if (!tokenUrl || !clientId || !secretFromEnv) {
     throw new Error('Missing Cognito OAuth configuration (token URL, client ID, or secret).');
   }
 
-  let clientSecret;
-  try {
-    clientSecret = Buffer.from(secretB64, 'base64').toString('utf8');
-  } catch (err) {
-    throw new Error(`Failed to decode Cognito client secret: ${err.message}`);
+  const clientSecret = resolveClientSecret(secretFromEnv);
+  if (!clientSecret) {
+    throw new Error('Unable to resolve Cognito client secret from Terraform-provided value.');
   }
 
   try {
@@ -320,14 +318,19 @@ async function getCognitoAccessToken(options = {}) {
       throw new Error('Cognito token response missing access_token');
     }
 
-    const expiresIn = response.data.expires_in ? `${response.data.expires_in}s` : 'unknown';
-    if (options.forceRefresh) {
-      console.log(`Obtained refreshed Cognito access token (expires in ${expiresIn}).`);
-    } else {
-      console.log(`Obtained Cognito access token (expires in ${expiresIn}).`);
-    }
+    const { access_token: accessToken, token_type: tokenType = 'Bearer', expires_in: expiresIn, scope: grantedScope } = response.data;
+    logCognitoTokenMetadata(accessToken, {
+      expiresIn,
+      grantedScope: grantedScope || scope,
+      isRefresh: Boolean(options.forceRefresh)
+    });
 
-    return response.data.access_token;
+    return {
+      token: accessToken,
+      tokenType,
+      expiresIn,
+      grantedScope: grantedScope || scope || null
+    };
   } catch (err) {
     console.error('Failed to obtain Cognito token:', err.response?.data || err.message);
     throw new Error(`Unable to obtain Cognito access token: ${err.message}`);
@@ -337,16 +340,99 @@ async function getCognitoAccessToken(options = {}) {
 /**
  * Build headers for requests to the AWS endpoint.
  */
-function getAwsRequestHeaders(accessToken) {
+function getAwsRequestHeaders(auth) {
   const headers = {
     'Content-Type': 'application/json'
   };
 
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
+  if (auth?.token) {
+    const tokenType = auth.tokenType || 'Bearer';
+    headers['Authorization'] = `${tokenType} ${auth.token}`;
+  }
+
+  if (process.env.AWS_API_KEY) {
+    headers['x-api-key'] = process.env.AWS_API_KEY;
   }
 
   return headers;
+}
+
+/**
+ * Log sanitized Cognito token metadata for troubleshooting.
+ */
+function logCognitoTokenMetadata(token, { expiresIn, grantedScope, isRefresh }) {
+  const prefix = isRefresh ? 'Refreshed Cognito token' : 'New Cognito token';
+  const summary = {
+    expiresIn: expiresIn ? `${expiresIn}s` : 'unknown',
+    scope: grantedScope || 'none'
+  };
+
+  if (token && token.includes('.')) {
+    try {
+      const payload = decodeJwtPayload(token);
+      if (payload) {
+        summary.issuer = payload.iss;
+        summary.client_id = payload.client_id || payload.clientId || payload.aud;
+        summary.token_use = payload.token_use;
+        summary.exp = payload.exp;
+        summary.expHuman = payload.exp ? new Date(payload.exp * 1000).toISOString() : undefined;
+      }
+    } catch (err) {
+      console.warn('Unable to decode Cognito token payload:', err.message);
+    }
+  }
+
+  console.log(`${prefix}:`, summary);
+}
+
+function decodeJwtPayload(token) {
+  const parts = token.split('.');
+  if (parts.length < 2) {
+    return null;
+  }
+  const payload = Buffer.from(parts[1], 'base64').toString('utf8');
+  return JSON.parse(payload);
+}
+
+/**
+ * Resolve client secret whether Terraform provided base64 or plain text.
+ */
+function resolveClientSecret(secretFromTerraform) {
+  if (!secretFromTerraform) {
+    return null;
+  }
+
+  const trimmed = secretFromTerraform.trim();
+  const decoded = tryDecodeBase64(trimmed);
+
+  if (decoded) {
+    console.log('Using Cognito client secret decoded from base64 (Terraform template input).');
+    return decoded;
+  }
+
+  console.log('Using Cognito client secret as-is from Terraform template.');
+  return trimmed;
+}
+
+function tryDecodeBase64(value) {
+  try {
+    const decoded = Buffer.from(value, 'base64').toString('utf8');
+    if (!decoded) {
+      return null;
+    }
+
+    // Re-encode to ensure the original looked like base64 and not plain text.
+    const reencoded = Buffer.from(decoded, 'utf8').toString('base64').replace(/=+$/, '');
+    const normalizedOriginal = value.replace(/=+$/, '');
+
+    if (reencoded === normalizedOriginal) {
+      return decoded;
+    }
+  } catch (err) {
+    return null;
+  }
+
+  return null;
 }
 
 /**

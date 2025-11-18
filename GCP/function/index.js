@@ -142,11 +142,30 @@ exports.extractAndSendGCPInfo = async (req, res) => {
     // Helper to send payload to a specific endpoint with the current token
     const postToAws = (endpoint) => {
       const headers = getAwsRequestHeaders(cognitoAuth);
+      
+      // Log full token info for debugging (first 100 chars only)
+      const authHeader = headers['Authorization'] || '';
+      const tokenPart = authHeader.replace('Bearer ', '');
+      
       console.log('Sending request to AWS with headers:', {
         'Content-Type': headers['Content-Type'],
-        'Authorization': headers['Authorization'] ? headers['Authorization'].substring(0, 50) + '...' : 'MISSING',
-        'x-api-key': headers['x-api-key'] ? '***' : 'not set'
+        'Authorization': authHeader ? `${authHeader.substring(0, 20)}...` : 'MISSING',
+        'x-api-key': headers['x-api-key'] ? '***' : 'not set',
+        'User-Agent': headers['User-Agent'] || 'not set'
       });
+      
+      console.log('Token details:', {
+        tokenLength: tokenPart.length,
+        tokenStartsWith: tokenPart.substring(0, 20),
+        tokenType: cognitoAuth?.tokenType,
+        scope: cognitoAuth?.grantedScope,
+        claims: cognitoAuth?.claims ? {
+          iss: cognitoAuth.claims.iss,
+          client_id: cognitoAuth.claims.client_id,
+          scope: cognitoAuth.claims.scope
+        } : null
+      });
+      
       return axios.post(endpoint, payload, {
         headers: headers,
         timeout: 10000
@@ -258,6 +277,14 @@ exports.extractAndSendGCPInfo = async (req, res) => {
         authorizationHeaderPresent: !!(headersSent['Authorization'] || headersSent['authorization']),
         authorizationHeaderPreview: (headersSent['Authorization'] || headersSent['authorization'] || '').substring(0, 50) + '...',
         apiKeyPresent: !!(headersSent['x-api-key'] || headersSent['X-Api-Key']),
+        tokenClaims: cognitoAuth?.claims ? {
+          iss: cognitoAuth.claims.iss,
+          sub: cognitoAuth.claims.sub,
+          client_id: cognitoAuth.claims.client_id,
+          scope: cognitoAuth.claims.scope,
+          token_use: cognitoAuth.claims.token_use,
+          exp: cognitoAuth.claims.exp
+        } : null,
         requestHeaders: {
           'Content-Type': headersSent['Content-Type'] || headersSent['content-type'],
           'Authorization': headersSent['Authorization'] || headersSent['authorization'] ? 'PRESENT' : 'MISSING',
@@ -356,6 +383,26 @@ async function getCognitoAccessToken(options = {}) {
     }
 
     const { access_token: accessToken, token_type: tokenType = 'Bearer', expires_in: expiresIn, scope: grantedScope } = response.data;
+    
+    // Decode and log token claims for debugging
+    let tokenClaims = null;
+    try {
+      tokenClaims = decodeJwtPayload(accessToken);
+      if (tokenClaims) {
+        console.log('Cognito token claims:', {
+          iss: tokenClaims.iss,
+          sub: tokenClaims.sub,
+          client_id: tokenClaims.client_id,
+          scope: tokenClaims.scope,
+          token_use: tokenClaims.token_use,
+          exp: tokenClaims.exp,
+          expHuman: tokenClaims.exp ? new Date(tokenClaims.exp * 1000).toISOString() : null
+        });
+      }
+    } catch (err) {
+      console.warn('Could not decode token claims:', err.message);
+    }
+    
     logCognitoTokenMetadata(accessToken, {
       expiresIn,
       grantedScope: grantedScope || scope,
@@ -366,7 +413,8 @@ async function getCognitoAccessToken(options = {}) {
       token: accessToken,
       tokenType,
       expiresIn,
-      grantedScope: grantedScope || scope || null
+      grantedScope: grantedScope || scope || null,
+      claims: tokenClaims
     };
   } catch (err) {
     console.error('Failed to obtain Cognito token:', err.response?.data || err.message);

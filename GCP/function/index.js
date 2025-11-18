@@ -149,6 +149,7 @@ exports.extractAndSendGCPInfo = async (req, res) => {
       
       console.log('Sending request to AWS with headers:', {
         'Content-Type': headers['Content-Type'],
+        'auth-token': headers['auth-token'] ? `${headers['auth-token'].substring(0, 20)}...` : 'MISSING',
         'Authorization': authHeader ? `${authHeader.substring(0, 20)}...` : 'MISSING',
         'x-api-key': headers['x-api-key'] ? '***' : 'not set',
         'User-Agent': headers['User-Agent'] || 'not set'
@@ -265,15 +266,24 @@ exports.extractAndSendGCPInfo = async (req, res) => {
     
     // If all attempts failed, return error with diagnostic info
     const headersSent = lastError?.config?.headers || {};
+    const responseHeaders = lastError?.response?.headers || {};
+    
     const errorDetails = {
       message: lastError?.message || 'Failed to send to AWS endpoint',
       endpoint: awsEndpoint,
       statusCode: lastError?.response?.status,
       statusText: lastError?.response?.statusText,
       responseData: lastError?.response?.data,
+      responseHeaders: {
+        'www-authenticate': responseHeaders['www-authenticate'] || responseHeaders['WWW-Authenticate'] || null,
+        'x-amzn-errortype': responseHeaders['x-amzn-errortype'] || responseHeaders['X-Amzn-Errortype'] || null,
+        'x-amzn-requestid': responseHeaders['x-amzn-requestid'] || responseHeaders['X-Amzn-Requestid'] || null
+      },
       diagnostics: {
         cognitoTokenObtained: cognitoAuth ? !!cognitoAuth.token : false,
         tokenPreview: cognitoAuth?.token ? cognitoAuth.token.substring(0, 30) + '...' : 'NO TOKEN',
+        authTokenHeaderPresent: !!(headersSent['auth-token'] || headersSent['Auth-Token']),
+        authTokenHeaderPreview: (headersSent['auth-token'] || headersSent['Auth-Token'] || '').substring(0, 50) + '...',
         authorizationHeaderPresent: !!(headersSent['Authorization'] || headersSent['authorization']),
         authorizationHeaderPreview: (headersSent['Authorization'] || headersSent['authorization'] || '').substring(0, 50) + '...',
         apiKeyPresent: !!(headersSent['x-api-key'] || headersSent['X-Api-Key']),
@@ -283,15 +293,21 @@ exports.extractAndSendGCPInfo = async (req, res) => {
           client_id: cognitoAuth.claims.client_id,
           scope: cognitoAuth.claims.scope,
           token_use: cognitoAuth.claims.token_use,
-          exp: cognitoAuth.claims.exp
+          exp: cognitoAuth.claims.exp,
+          expHuman: cognitoAuth.claims.exp ? new Date(cognitoAuth.claims.exp * 1000).toISOString() : null,
+          isExpired: cognitoAuth.claims.exp ? (Date.now() / 1000) > cognitoAuth.claims.exp : null
         } : null,
         requestHeaders: {
           'Content-Type': headersSent['Content-Type'] || headersSent['content-type'],
+          'auth-token': headersSent['auth-token'] || headersSent['Auth-Token'] ? 'PRESENT' : 'MISSING',
           'Authorization': headersSent['Authorization'] || headersSent['authorization'] ? 'PRESENT' : 'MISSING',
-          'x-api-key': headersSent['x-api-key'] || headersSent['X-Api-Key'] ? 'PRESENT' : 'MISSING'
-        }
+          'x-api-key': headersSent['x-api-key'] || headersSent['X-Api-Key'] ? 'PRESENT' : 'MISSING',
+          'User-Agent': headersSent['User-Agent'] || headersSent['user-agent'] || 'not set'
+        },
+        requestMethod: lastError?.config?.method || 'POST',
+        requestUrl: lastError?.config?.url || awsEndpoint
       },
-      suggestion: 'The endpoint might not accept POST requests. Please configure your API Gateway to accept POST on this route, or use a different endpoint that accepts POST requests.'
+      suggestion: 'The endpoint might not accept POST requests. Please configure your API Gateway to accept POST on this route, or use a different endpoint that accepts POST requests. Check API Gateway authorizer configuration and ensure it accepts tokens from the Cognito User Pool.'
     };
     
     console.error('Error sending to AWS endpoint:', JSON.stringify(errorDetails, null, 2));
@@ -424,6 +440,8 @@ async function getCognitoAccessToken(options = {}) {
 
 /**
  * Build headers for requests to the AWS endpoint.
+ * API Gateway authorizer is configured with token source "auth-token",
+ * so we send the token in the "auth-token" header.
  */
 function getAwsRequestHeaders(auth) {
   const headers = {
@@ -431,6 +449,11 @@ function getAwsRequestHeaders(auth) {
   };
 
   if (auth?.token) {
+    // API Gateway Cognito authorizer with token source "auth-token" expects
+    // the token in the "auth-token" header (raw token, no "Bearer" prefix)
+    headers['auth-token'] = auth.token;
+    
+    // Also include Authorization header for compatibility
     const tokenType = auth.tokenType || 'Bearer';
     headers['Authorization'] = `${tokenType} ${auth.token}`;
   }

@@ -90,7 +90,7 @@ exports.extractAndSendGCPInfo = async (req, res) => {
     };
 
     // Fetch Cognito access token for downstream AWS API authorization
-    const cognitoAccessToken = await getCognitoAccessToken();
+    let cognitoAccessToken = await getCognitoAccessToken();
 
     console.log('Extracted data:', JSON.stringify(payload, null, 2));
 
@@ -133,12 +133,15 @@ exports.extractAndSendGCPInfo = async (req, res) => {
     const alternativePaths = ['/api', '/data', '/webhook', '/post', '/submit'];
     let lastError = null;
     
+    // Helper to send payload to a specific endpoint with the current token
+    const postToAws = (endpoint) => axios.post(endpoint, payload, {
+      headers: getAwsRequestHeaders(cognitoAccessToken),
+      timeout: 10000
+    });
+
     // First try the configured/default endpoint
     try {
-      const response = await axios.post(awsEndpoint, payload, {
-        headers: getAwsRequestHeaders(cognitoAccessToken),
-        timeout: 10000
-      });
+      const response = await postToAws(awsEndpoint);
 
       console.log('Successfully sent to AWS endpoint:', response.status);
 
@@ -153,11 +156,37 @@ exports.extractAndSendGCPInfo = async (req, res) => {
       });
       return;
     } catch (awsError) {
-      lastError = awsError;
-      console.warn(`Failed to send to ${awsEndpoint}:`, awsError.response?.status, awsError.response?.statusText);
+      let errorAfterRetry = awsError;
+      // If unauthorized, refresh the Cognito token once and retry immediately
+      if (awsError.response?.status === 401) {
+        console.warn('Received 401 from AWS endpoint; refreshing Cognito token and retrying once.');
+        try {
+          cognitoAccessToken = await getCognitoAccessToken({ forceRefresh: true });
+          const retryResponse = await postToAws(awsEndpoint);
+          console.log('Successfully sent to AWS endpoint after token refresh:', retryResponse.status);
+
+          res.status(200).json({
+            success: true,
+            message: 'Data extracted and sent successfully',
+            data: payload,
+            awsResponse: {
+              status: retryResponse.status,
+              statusText: retryResponse.statusText,
+              retriedWithNewToken: true
+            }
+          });
+          return;
+        } catch (retryError) {
+          console.warn('Retry after Cognito token refresh also failed:', retryError.response?.status, retryError.message);
+          errorAfterRetry = retryError;
+        }
+      }
+
+      lastError = errorAfterRetry;
+      console.warn(`Failed to send to ${awsEndpoint}:`, errorAfterRetry.response?.status, errorAfterRetry.response?.statusText);
       
       // If it's a 404 and we haven't tried alternatives yet, try common paths
-      if (awsError.response?.status === 404 && !process.env.AWS_ENDPOINT_PATH) {
+      if (errorAfterRetry.response?.status === 404 && !process.env.AWS_ENDPOINT_PATH) {
         // Extract base URL from the current endpoint
         let baseUrl;
         try {
@@ -173,10 +202,7 @@ exports.extractAndSendGCPInfo = async (req, res) => {
           console.log(`Trying alternative endpoint: ${altEndpoint}`);
           
           try {
-            const altResponse = await axios.post(altEndpoint, payload, {
-              headers: getAwsRequestHeaders(cognitoAccessToken),
-              timeout: 10000
-            });
+            const altResponse = await postToAws(altEndpoint);
             
             console.log(`Successfully sent to alternative endpoint ${altEndpoint}:`, altResponse.status);
             
@@ -252,7 +278,7 @@ async function getProjectIdFromMetadata() {
 /**
  * Retrieve Cognito OAuth2 token using the client credentials flow.
  */
-async function getCognitoAccessToken() {
+async function getCognitoAccessToken(options = {}) {
   const tokenUrl = process.env.COGNITO_TOKEN_URL;
   const clientId = process.env.COGNITO_CLIENT_ID;
   const scope = process.env.COGNITO_CLIENT_SCOPE;
@@ -280,15 +306,25 @@ async function getCognitoAccessToken() {
       params.append('scope', scope);
     }
 
+    const basicAuthToken = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
     const response = await axios.post(tokenUrl, params.toString(), {
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${basicAuthToken}`
       },
       timeout: 10000
     });
 
     if (!response.data || !response.data.access_token) {
       throw new Error('Cognito token response missing access_token');
+    }
+
+    const expiresIn = response.data.expires_in ? `${response.data.expires_in}s` : 'unknown';
+    if (options.forceRefresh) {
+      console.log(`Obtained refreshed Cognito access token (expires in ${expiresIn}).`);
+    } else {
+      console.log(`Obtained Cognito access token (expires in ${expiresIn}).`);
     }
 
     return response.data.access_token;

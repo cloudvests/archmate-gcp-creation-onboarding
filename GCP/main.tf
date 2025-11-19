@@ -60,7 +60,7 @@ resource "google_project_iam_member" "readonly_binding" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-read-only425"
+  workload_identity_pool_id = "aws-pool-read-only426"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -330,7 +330,7 @@ variable "cloud_function_entry_point" {
 
 variable "aws_service_account_id" {
   type        = string
-  default     = "aws-readonly-425"
+  default     = "aws-readonly-426"
 }
 
 variable "aws_api_key" {
@@ -354,8 +354,12 @@ variable "aws_endpoint_path" {
 
 variable "cognito_token_url" {
   type        = string
-  description = "Amazon Cognito OAuth2 token endpoint URL."
-  default     = "https://eu-central-1ms31lbkqs.auth.eu-central-1.amazoncognito.com/oauth2/token"
+  description = "Amazon Cognito OAuth2 token endpoint URL. Format: https://<your-user-pool-domain>.auth.eu-central-1.amazoncognito.com/oauth2/token"
+  # Updated for pool: eu-central-1_YXgMmtMcl
+  # You need to replace <your-user-pool-domain> with your actual Cognito User Pool domain
+  # Find it in AWS Cognito Console > User Pools > Your Pool > App integration > Domain
+  # Example: https://archmate-gcp-onboarding-dev.auth.eu-central-1.amazoncognito.com/oauth2/token
+  default     = "https://archmate-gcp-onboarding-dev.auth.eu-central-1.amazoncognito.com/oauth2/token"
 }
 
 variable "cognito_client_id" {

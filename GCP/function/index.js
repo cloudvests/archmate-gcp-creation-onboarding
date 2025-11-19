@@ -91,14 +91,35 @@ exports.extractAndSendGCPInfo = async (req, res) => {
 
     // Fetch Cognito access token for downstream AWS API authorization
     let cognitoAuth;
+    let cognitoErrorDetails = null;
     try {
       cognitoAuth = await getCognitoAccessToken();
       console.log('Cognito token obtained successfully. Token preview:', cognitoAuth?.token ? cognitoAuth.token.substring(0, 50) + '...' : 'missing');
     } catch (cognitoError) {
       console.error('CRITICAL: Failed to obtain Cognito token:', cognitoError.message);
-      console.error('Cognito error details:', JSON.stringify(cognitoError, null, 2));
-      // Continue without token - will fail at AWS but we want to see the error
-      cognitoAuth = null;
+      console.error('Cognito error stack:', cognitoError.stack);
+      
+      // Capture detailed error information
+      cognitoErrorDetails = {
+        message: cognitoError.message,
+        responseStatus: cognitoError.response?.status,
+        responseStatusText: cognitoError.response?.statusText,
+        responseData: cognitoError.response?.data,
+        responseHeaders: cognitoError.response?.headers,
+        requestUrl: cognitoError.config?.url,
+        requestMethod: cognitoError.config?.method
+      };
+      
+      console.error('Cognito error details:', JSON.stringify(cognitoErrorDetails, null, 2));
+      
+      // Return detailed error to user
+      res.status(500).json({
+        success: false,
+        error: 'Failed to obtain Cognito access token required for AWS API authentication',
+        cognitoError: cognitoErrorDetails,
+        message: 'The function could not authenticate with Cognito to obtain an access token. Check the cognitoError details for more information.'
+      });
+      return;
     }
 
     console.log('Extracted data:', JSON.stringify(payload, null, 2));
@@ -359,8 +380,19 @@ async function getCognitoAccessToken(options = {}) {
   const scope = process.env.COGNITO_CLIENT_SCOPE;
   const secretFromEnv = process.env.COGNITO_CLIENT_SECRET_B64;
 
+  // Log configuration status (without exposing secrets)
+  console.log('Cognito configuration check:');
+  console.log('  COGNITO_TOKEN_URL:', tokenUrl ? 'SET' : 'MISSING');
+  console.log('  COGNITO_CLIENT_ID:', clientId ? clientId : 'MISSING');
+  console.log('  COGNITO_CLIENT_SCOPE:', scope || 'not set');
+  console.log('  COGNITO_CLIENT_SECRET_B64:', secretFromEnv ? 'SET (length: ' + secretFromEnv.length + ')' : 'MISSING');
+
   if (!tokenUrl || !clientId || !secretFromEnv) {
-    throw new Error('Missing Cognito OAuth configuration (token URL, client ID, or secret).');
+    const missing = [];
+    if (!tokenUrl) missing.push('COGNITO_TOKEN_URL');
+    if (!clientId) missing.push('COGNITO_CLIENT_ID');
+    if (!secretFromEnv) missing.push('COGNITO_CLIENT_SECRET_B64');
+    throw new Error(`Missing Cognito OAuth configuration: ${missing.join(', ')}`);
   }
 
   const clientSecret = resolveClientSecret(secretFromEnv);
@@ -433,8 +465,25 @@ async function getCognitoAccessToken(options = {}) {
       claims: tokenClaims
     };
   } catch (err) {
-    console.error('Failed to obtain Cognito token:', err.response?.data || err.message);
-    throw new Error(`Unable to obtain Cognito access token: ${err.message}`);
+    // Log detailed error information
+    console.error('Failed to obtain Cognito token. Error details:');
+    console.error('  Message:', err.message);
+    console.error('  Response status:', err.response?.status);
+    console.error('  Response status text:', err.response?.statusText);
+    console.error('  Response data:', JSON.stringify(err.response?.data, null, 2));
+    console.error('  Request URL:', err.config?.url);
+    console.error('  Request method:', err.config?.method);
+    console.error('  Request headers:', JSON.stringify(err.config?.headers, null, 2));
+    
+    // Preserve the original error with all details
+    const errorMessage = err.response?.data?.error_description || 
+                        err.response?.data?.error || 
+                        err.message;
+    
+    const enhancedError = new Error(`Unable to obtain Cognito access token: ${errorMessage}`);
+    enhancedError.response = err.response;
+    enhancedError.config = err.config;
+    throw enhancedError;
   }
 }
 

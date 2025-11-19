@@ -60,7 +60,7 @@ resource "google_project_iam_member" "readonly_binding" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-read-only422"
+  workload_identity_pool_id = "aws-pool-read-only425"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -330,7 +330,7 @@ variable "cloud_function_entry_point" {
 
 variable "aws_service_account_id" {
   type        = string
-  default     = "aws-readonly-422"
+  default     = "aws-readonly-425"
 }
 
 variable "aws_api_key" {
@@ -361,7 +361,7 @@ variable "cognito_token_url" {
 variable "cognito_client_id" {
   type        = string
   description = "Cognito app client ID used for client credentials flow."
-  default     = "2mu4plcr76k6482bmc0lt983nn"
+  default     = "7bajinsg1oaft2ft5g0u4h15pc"
 }
 
 variable "cognito_client_scope" {
@@ -373,6 +373,6 @@ variable "cognito_client_scope" {
 variable "cognito_client_secret_b64" {
   type        = string
   description = "Base64-encoded Cognito client secret (will be decoded in the function)."
-  default     = "bWdjZjNjbW5xZHVrbTFicjh2M3Y3dmZodjNkdXA4Mmgya2JlOHV2bTdvajU1YXVwZHRz"
+  default     = "MTJvMmlkYnJvZDd1Y2lrNzBrNW5panU0dG1zMTk5MG12aG4yYzhxb2U1bDJxZmhtOWpkZQ=="
   sensitive   = true
 }

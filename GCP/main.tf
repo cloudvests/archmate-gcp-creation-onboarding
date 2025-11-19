@@ -60,7 +60,7 @@ resource "google_project_iam_member" "readonly_binding" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-read-only435"
+  workload_identity_pool_id = "aws-pool-read-only440"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -330,7 +330,7 @@ variable "cloud_function_entry_point" {
 
 variable "aws_service_account_id" {
   type        = string
-  default     = "aws-readonly-435"
+  default     = "aws-readonly-440"
 }
 
 variable "aws_api_key" {

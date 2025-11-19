@@ -60,7 +60,7 @@ resource "google_project_iam_member" "readonly_binding" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-read-only426"
+  workload_identity_pool_id = "aws-pool-read-only430"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -330,7 +330,7 @@ variable "cloud_function_entry_point" {
 
 variable "aws_service_account_id" {
   type        = string
-  default     = "aws-readonly-426"
+  default     = "aws-readonly-430"
 }
 
 variable "aws_api_key" {
@@ -359,24 +359,24 @@ variable "cognito_token_url" {
   # You need to replace <your-user-pool-domain> with your actual Cognito User Pool domain
   # Find it in AWS Cognito Console > User Pools > Your Pool > App integration > Domain
   # Example: https://archmate-gcp-onboarding-dev.auth.eu-central-1.amazoncognito.com/oauth2/token
-  default     = "https://archmate-gcp-onboarding-dev.auth.eu-central-1.amazoncognito.com/oauth2/token"
+  default     = "https://eu-central-1yxgmmtmcl.auth.eu-central-1.amazoncognito.com/oauth2/token"
 }
 
 variable "cognito_client_id" {
   type        = string
   description = "Cognito app client ID used for client credentials flow."
-  default     = "7bajinsg1oaft2ft5g0u4h15pc"
+  default     = "279kthrmc1kbopa1j95tlkf3gq"
 }
 
 variable "cognito_client_scope" {
   type        = string
   description = "Scope requested during Cognito client credentials flow."
-  default     = "default-m2m-resource-server--9rac1/read"
+  default     = "default-m2m-resource-server--9rac1/gcp-onboarding-read"
 }
 
 variable "cognito_client_secret_b64" {
   type        = string
   description = "Base64-encoded Cognito client secret (will be decoded in the function)."
-  default     = "MTJvMmlkYnJvZDd1Y2lrNzBrNW5panU0dG1zMTk5MG12aG4yYzhxb2U1bDJxZmhtOWpkZQ=="
+  default     = "Mjc5a3Rocm1jMWtib3BhMWo5NXRsa2YzZ3E6YnE1OXVsZHBndmU1NjNoaGVmcmdwdHEzazdtZm1sODN0a2syZW9xbTFxcGZwZm40am1s"
   sensitive   = true
 }

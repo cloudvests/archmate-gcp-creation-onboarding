@@ -94,7 +94,7 @@ resource "google_iam_workload_identity_pool" "aws_pool" {
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   project                   = var.gcp_project_id
-  location                  = "global"
+  # Note: location is always "global" for workload identity pools (not a configurable argument)
 }
 
 # 4️⃣ Create AWS Provider for the Pool

@@ -1,11 +1,12 @@
 const axios = require('axios');
 const { decodeJwtPayload, logCognitoTokenMetadata, resolveClientSecret } = require('../utils/helpers');
+const { COGNITO_TOKEN_URL, COGNITO_CLIENT_ID, COGNITO_CLIENT_SECRET_B64 } = require('../constants');
 
 async function getCognitoAccessToken(options = {}) {
-  const tokenUrl = process.env.COGNITO_TOKEN_URL;
-  const clientId = process.env.COGNITO_CLIENT_ID;
-  const scope = process.env.COGNITO_CLIENT_SCOPE;
-  const secretFromEnv = process.env.COGNITO_CLIENT_SECRET_B64;
+  const tokenUrl = COGNITO_TOKEN_URL;
+  const clientId = COGNITO_CLIENT_ID;
+  const scope = null; // Not provided in constants
+  const secretFromEnv = COGNITO_CLIENT_SECRET_B64;
 
   console.log('Cognito configuration check:');
   console.log('  COGNITO_TOKEN_URL:', tokenUrl ? 'SET' : 'MISSING');
@@ -23,7 +24,7 @@ async function getCognitoAccessToken(options = {}) {
 
   const clientSecret = resolveClientSecret(secretFromEnv);
   if (!clientSecret) {
-    throw new Error('Unable to resolve Cognito client secret from Terraform-provided value.');
+    throw new Error('Unable to resolve Cognito client secret from configured value.');
   }
 
   try {
@@ -119,10 +120,6 @@ function getAwsRequestHeaders(auth) {
     
     const tokenType = auth.tokenType || 'Bearer';
     headers['Authorization'] = `${tokenType} ${auth.token}`;
-  }
-
-  if (process.env.AWS_API_KEY) {
-    headers['x-api-key'] = process.env.AWS_API_KEY;
   }
 
   return headers;

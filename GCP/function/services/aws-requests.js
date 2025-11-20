@@ -1,10 +1,11 @@
 const axios = require('axios');
 const { getAwsRequestHeaders } = require('./cognito');
 const { buildEndpointWithPath } = require('../utils/helpers');
+const { AWS_ENDPOINT, AWS_ENDPOINT_PATH } = require('../constants');
 
 async function sendToAwsEndpoint(payload, cognitoAuth) {
-  const endpointBase = process.env.AWS_ENDPOINT || 'https://zspu86b2d7.execute-api.eu-central-1.amazonaws.com';
-  const endpointPath = (process.env.AWS_ENDPOINT_PATH || '').trim();
+  const endpointBase = AWS_ENDPOINT;
+  const endpointPath = AWS_ENDPOINT_PATH.trim();
   let awsEndpoint = endpointBase;
   
   let urlHasPath = awsEndpoint.includes('/', 8);

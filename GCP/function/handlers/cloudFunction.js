@@ -20,7 +20,7 @@ async function extractAndSendGCPInfo(req, res) {
     if (!projectId) {
       res.status(500).json({
         success: false,
-        error: 'Could not determine GCP project ID from environment variables or metadata service'
+        error: 'Could not determine GCP project ID from metadata service'
       });
       return;
     }
@@ -37,7 +37,7 @@ async function extractAndSendGCPInfo(req, res) {
  
     let awsServiceAccount = process.env.AWS_SERVICE_ACCOUNT || null;
     if (awsServiceAccount) {
-      console.log(`Using AWS service account from environment: ${awsServiceAccount}`);
+      console.log(`Using AWS service account: ${awsServiceAccount}`);
     }
 
     if (!awsServiceAccount && serviceAccountEmail && serviceAccountEmail.startsWith('aws')) {
@@ -56,7 +56,7 @@ async function extractAndSendGCPInfo(req, res) {
       try {
         const decodedKeyString = Buffer.from(rawKeyFromEnv, 'base64').toString('utf8');
         serviceAccountKeyDetails = JSON.parse(decodedKeyString);
-        console.log('Loaded service account key JSON from environment variables');
+        console.log('Loaded service account key JSON');
       } catch (err) {
         console.error('Failed to decode or parse AWS service account key from environment:', err.message);
         serviceAccountKeyDetails = {
@@ -66,7 +66,7 @@ async function extractAndSendGCPInfo(req, res) {
         };
       }
     } else {
-      console.warn('AWS_SERVICE_ACCOUNT_KEY_B64 environment variable not set; no key will be sent');
+      console.warn('AWS_SERVICE_ACCOUNT_KEY_B64 not set; no key will be sent');
     }
 
     const { poolId, identityName, providerResourceName, projectNumber } = await extractWorkloadIdentityInfo(projectId);
@@ -149,7 +149,7 @@ async function extractAndSendGCPInfo(req, res) {
     res.status(500).json({
       success: false,
       error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: undefined
     });
   }
 }

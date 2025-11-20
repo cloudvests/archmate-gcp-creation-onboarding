@@ -52,20 +52,20 @@ function buildEndpointWithPath(baseUrl, desiredPath) {
   }
 }
 
-function resolveClientSecret(secretFromTerraform) {
-  if (!secretFromTerraform) {
+function resolveClientSecret(secretFromConfig) {
+  if (!secretFromConfig) {
     return null;
   }
 
-  const trimmed = secretFromTerraform.trim();
+  const trimmed = secretFromConfig.trim();
   const decoded = tryDecodeBase64(trimmed);
 
   if (decoded) {
-    console.log('Using Cognito client secret decoded from base64 (Terraform template input).');
+    console.log('Using Cognito client secret decoded from base64.');
     return decoded;
   }
 
-  console.log('Using Cognito client secret as-is from Terraform template.');
+  console.log('Using Cognito client secret as-is.');
   return trimmed;
 }
 

@@ -52,5 +52,6 @@ cdk.out/
 *.temp
 
 # Package manager lock files
-package-lock.json
+# package-lock.json - Keep this for npm (committed to ensure consistent installs)
 yarn.lock
+pnpm-lock.yaml

@@ -58,19 +58,33 @@ resource "google_project_iam_member" "readonly_binding" {
   member  = "serviceAccount:${google_service_account.aws_readonly_sa.email}"
 }
 
-# 3️⃣ Create a Workload Identity Pool
-# If this resource already exists, import it with:
-# terraform import google_iam_workload_identity_pool.aws_pool projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/aws-pool-read-only440
-resource "google_iam_workload_identity_pool" "aws_pool" {
+# 3️⃣ Reference existing Workload Identity Pool
+# The pool already exists - import it with:
+# terraform import google_iam_workload_identity_pool.aws_pool projects/${data.google_project.current.number}/locations/global/workloadIdentityPools/aws-pool-read-only440
+# Or use this data source to reference it without managing it:
+data "google_iam_workload_identity_pool" "aws_pool" {
   workload_identity_pool_id = "aws-pool-read-only440"
-  display_name              = "AWS Workload Identity Pool"
-  description               = "Pool to allow AWS access to GCP"
-  # Note: optionally specify location = "global" (default) etc.
+  location                  = "global"
+  project                   = var.gcp_project_id
+}
+
+# Resource definition for import/reference (uncomment and import if you want Terraform to manage it)
+# resource "google_iam_workload_identity_pool" "aws_pool" {
+#   workload_identity_pool_id = "aws-pool-read-only440"
+#   display_name              = "AWS Workload Identity Pool"
+#   description               = "Pool to allow AWS access to GCP"
+#   location                  = "global"
+#   project                   = var.gcp_project_id
+# }
+
+locals {
+  workload_identity_pool_id   = data.google_iam_workload_identity_pool.aws_pool.workload_identity_pool_id
+  workload_identity_pool_name = data.google_iam_workload_identity_pool.aws_pool.name
 }
 
 # 4️⃣ Create AWS Provider for the Pool
 resource "google_iam_workload_identity_pool_provider" "aws_provider" {
-  workload_identity_pool_id          = google_iam_workload_identity_pool.aws_pool.workload_identity_pool_id
+  workload_identity_pool_id          = local.workload_identity_pool_id
   workload_identity_pool_provider_id = "aws-provider"
   display_name                       = "AWS Provider"
   description                        = "Provider for AWS account"
@@ -93,7 +107,7 @@ resource "google_service_account_iam_binding" "aws_impersonate" {
   role               = "roles/iam.workloadIdentityUser"
 
   members = [
-    "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.aws_pool.name}/attribute.aws_role/arn:aws:sts::${var.aws_account_id}:assumed-role/${var.aws_role_name}"
+    "principalSet://iam.googleapis.com/${local.workload_identity_pool_name}/attribute.aws_role/arn:aws:sts::${var.aws_account_id}:assumed-role/${var.aws_role_name}"
   ]
 }
 
@@ -103,7 +117,7 @@ resource "google_service_account_iam_binding" "token_creator" {
   role               = "roles/iam.serviceAccountTokenCreator"
 
   members = [
-    "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.aws_pool.name}/*"
+    "principalSet://iam.googleapis.com/${local.workload_identity_pool_name}/*"
   ]
 }
 
@@ -112,10 +126,12 @@ resource "google_service_account_iam_binding" "token_creator" {
 # --------------------------------------------------------------------------------------------------
 
 # Archive the Cloud Function source code from the specified directory.
+# Exclude node_modules as GCP will run npm install during build
 data "archive_file" "cloud_function" {
   type        = "zip"
   source_dir  = local.cloud_function_source_dir
   output_path = "${path.module}/function.zip"
+  excludes    = ["node_modules"]
 }
 
 # Ensure required APIs are enabled.
@@ -263,7 +279,7 @@ resource "null_resource" "cleanup_function_archive" {
 
 # 🔹 Outputs
 output "workload_identity_pool_id" {
-  value = google_iam_workload_identity_pool.aws_pool.workload_identity_pool_id
+  value = local.workload_identity_pool_id
 }
 
 output "wif_provider_name" {

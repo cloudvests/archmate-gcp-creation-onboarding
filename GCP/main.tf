@@ -58,28 +58,21 @@ resource "google_project_iam_member" "readonly_binding" {
   member  = "serviceAccount:${google_service_account.aws_readonly_sa.email}"
 }
 
-# 3️⃣ Auto-import existing Workload Identity Pool before creation (runs first)
-resource "null_resource" "import_pool_if_exists" {
-  # This runs before the pool resource due to explicit dependency
+# 3️⃣ Always attempt to import Workload Identity Pool before creation
+# This handles the case where the pool exists in GCP but not in Terraform state
+resource "null_resource" "import_pool" {
   triggers = {
+    # Always run on every apply to check and import if needed
     project_id = var.gcp_project_id
+    timestamp  = timestamp()
   }
 
   provisioner "local-exec" {
     command = <<-EOT
-      # Check if pool exists and import it if needed
       POOL_NAME="projects/${var.gcp_project_id}/locations/global/workloadIdentityPools/aws-pool-read-only440"
-      if gcloud iam workload-identity-pools describe aws-pool-read-only440 \
-        --project=${var.gcp_project_id} \
-        --location=global \
-        --format="value(name)" >/dev/null 2>&1; then
-        echo "Workload Identity Pool exists, attempting to import into Terraform state..."
-        # Use terraform import without specifying state file (works with HTTP backend)
-        terraform import google_iam_workload_identity_pool.aws_pool "$POOL_NAME" 2>&1 | \
-        grep -v "Error importing" || echo "Import completed or resource already in state"
-      else
-        echo "Workload Identity Pool does not exist, will be created"
-      fi
+      # Always try to import - will fail silently if pool doesn't exist or already in state
+      terraform import google_iam_workload_identity_pool.aws_pool "$POOL_NAME" 2>&1 | \
+      grep -E "(Error|already in state|Successfully)" || true
     EOT
     on_failure = continue
   }
@@ -87,14 +80,12 @@ resource "null_resource" "import_pool_if_exists" {
 
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  # Import will be attempted before this resource is created
-  depends_on = [null_resource.import_pool_if_exists]
+  depends_on = [null_resource.import_pool]
   
   workload_identity_pool_id = "aws-pool-read-only440"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   project                   = var.gcp_project_id
-  # Note: location is always "global" for workload identity pools (not a configurable argument)
 }
 
 # 4️⃣ Create AWS Provider for the Pool

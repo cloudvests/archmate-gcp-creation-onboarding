@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "GCP Cloud Function for extracting and sending GCP information to AWS",
   "main": "index.js",
-  "packageManager": "pnpm@8.15.0",
   "engines": {
     "node": "20"
   },
@@ -12,12 +11,10 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@google-cloud/functions-framework": "^3.0.0",
     "@google-cloud/iam": "^2.3.1",
     "axios": "^1.6.0",
     "google-auth-library": "^9.0.0"
-  },
-  "devDependencies": {
-    "@google-cloud/functions-framework": "^3.0.0"
   },
   "keywords": [
     "gcp",

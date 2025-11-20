@@ -1,8 +1,9 @@
 {
   "name": "gcp-cloud-function-aws-trigger",
   "version": "1.0.0",
-  "description": "GCP Cloud Function triggered by AWS Lambda to extract project info and send to AWS endpoint",
+  "description": "GCP Cloud Function for extracting and sending GCP information to AWS",
   "main": "index.js",
+  "packageManager": "pnpm@8.15.0",
   "engines": {
     "node": "20"
   },
@@ -21,8 +22,7 @@
   "keywords": [
     "gcp",
     "cloud-function",
-    "aws",
-    "lambda"
+    "aws"
   ],
   "author": "",
   "license": "ISC"

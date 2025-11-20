@@ -59,6 +59,8 @@ resource "google_project_iam_member" "readonly_binding" {
 }
 
 # 3️⃣ Create a Workload Identity Pool
+# If this resource already exists, import it with:
+# terraform import google_iam_workload_identity_pool.aws_pool projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/aws-pool-read-only440
 resource "google_iam_workload_identity_pool" "aws_pool" {
   workload_identity_pool_id = "aws-pool-read-only440"
   display_name              = "AWS Workload Identity Pool"

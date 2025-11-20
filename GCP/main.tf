@@ -58,12 +58,43 @@ resource "google_project_iam_member" "readonly_binding" {
   member  = "serviceAccount:${google_service_account.aws_readonly_sa.email}"
 }
 
+# 3️⃣ Auto-import existing Workload Identity Pool before creation (runs first)
+resource "null_resource" "import_pool_if_exists" {
+  # This runs before the pool resource due to explicit dependency
+  triggers = {
+    project_id = var.gcp_project_id
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      # Check if pool exists and import it if needed
+      POOL_NAME="projects/${var.gcp_project_id}/locations/global/workloadIdentityPools/aws-pool-read-only440"
+      if gcloud iam workload-identity-pools describe aws-pool-read-only440 \
+        --project=${var.gcp_project_id} \
+        --location=global \
+        --format="value(name)" >/dev/null 2>&1; then
+        echo "Workload Identity Pool exists, attempting to import into Terraform state..."
+        # Use terraform import without specifying state file (works with HTTP backend)
+        terraform import google_iam_workload_identity_pool.aws_pool "$POOL_NAME" 2>&1 | \
+        grep -v "Error importing" || echo "Import completed or resource already in state"
+      else
+        echo "Workload Identity Pool does not exist, will be created"
+      fi
+    EOT
+    on_failure = continue
+  }
+}
+
 # 3️⃣ Create a Workload Identity Pool
 resource "google_iam_workload_identity_pool" "aws_pool" {
+  # Import will be attempted before this resource is created
+  depends_on = [null_resource.import_pool_if_exists]
+  
   workload_identity_pool_id = "aws-pool-read-only440"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
-  # Note: optionally specify location = "global" (default) etc.
+  project                   = var.gcp_project_id
+  location                  = "global"
 }
 
 # 4️⃣ Create AWS Provider for the Pool

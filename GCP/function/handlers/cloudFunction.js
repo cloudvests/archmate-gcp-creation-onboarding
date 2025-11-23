@@ -39,6 +39,16 @@ async function extractAndSendGCPInfo(req, res) {
       return;
     }
 
+    // Detect if this is an Eventarc event (CloudEvents format)
+    // Eventarc events have Ce-* headers or the body contains CloudEvents structure
+    const isEventarcEvent = req.headers && (
+      req.headers['ce-type'] || 
+      req.headers['ce-source'] || 
+      (req.body && req.body.type && req.body.source)
+    );
+    
+    console.log('Is Eventarc event:', isEventarcEvent);
+
     // Extract project ID
     const projectId = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || 
                      await getProjectIdFromMetadata();
@@ -103,10 +113,135 @@ async function extractAndSendGCPInfo(req, res) {
     // Extract Workload Identity Pool ID and Identity Name
     const { poolId, identityName, providerResourceName, projectNumber } = await extractWorkloadIdentityInfo(projectId);
 
+    // Helper function to extract headers from rawHeaders array
+    const getHeader = (name) => {
+      if (!req.rawHeaders || !Array.isArray(req.rawHeaders)) {
+        return null;
+      }
+      const lowerName = name.toLowerCase();
+      for (let i = 0; i < req.rawHeaders.length; i += 2) {
+        if (req.rawHeaders[i].toLowerCase() === lowerName) {
+          return req.rawHeaders[i + 1];
+        }
+      }
+      return null;
+    };
+    
+    // Helper function to parse query string from URL
+    const parseQuery = (url) => {
+      const query = {};
+      if (!url || !url.includes('?')) return query;
+      const queryString = url.split('?')[1];
+      if (!queryString) return query;
+      queryString.split('&').forEach(param => {
+        const [key, value] = param.split('=');
+        if (key) {
+          query[decodeURIComponent(key)] = value ? decodeURIComponent(value) : '';
+        }
+      });
+      return query;
+    };
+    
+    // Try to parse JSON body if Content-Type indicates JSON
+    let parsedBody = req.body;
+    if (req.body && typeof req.body === 'object' && Object.keys(req.body).length === 0) {
+      // Body might be empty object, try to parse from raw body if available
+      try {
+        const contentType = req.headers?.['content-type'] || getHeader('content-type') || '';
+        if (contentType.includes('application/json') && req.rawBody) {
+          parsedBody = typeof req.rawBody === 'string' ? JSON.parse(req.rawBody) : req.rawBody;
+        }
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
+    
+    // Extract eventType from request - handle both HTTP and Eventarc events
+    let eventType = null;
+    
+    // If this is an Eventarc event, extract eventType from CloudEvent
+    if (isEventarcEvent) {
+      // CloudEvents format: check ce-type header or body.type
+      const cloudEventType = req.headers?.['ce-type'] || 
+                            getHeader('ce-type') ||
+                            parsedBody?.type ||
+                            '';
+      
+      console.log('CloudEvent type:', cloudEventType);
+      
+      // Map Cloud Asset Inventory event types to our eventType
+      if (cloudEventType.includes('Create') || cloudEventType.includes('create')) {
+        eventType = 'create';
+      } else if (cloudEventType.includes('Update') || cloudEventType.includes('update')) {
+        eventType = 'update';
+      } else if (cloudEventType.includes('Delete') || cloudEventType.includes('delete')) {
+        eventType = 'delete';
+      }
+      
+      // Also check the event data payload for operation type
+      if (!eventType && parsedBody?.data) {
+        const eventData = typeof parsedBody.data === 'string' ? JSON.parse(parsedBody.data) : parsedBody.data;
+        if (eventData?.operation) {
+          const operation = eventData.operation.toLowerCase();
+          if (operation.includes('create')) eventType = 'create';
+          else if (operation.includes('update')) eventType = 'update';
+          else if (operation.includes('delete')) eventType = 'delete';
+        }
+      }
+    }
+    
+    // If not Eventarc event or eventType not found, try HTTP request methods
+    if (!eventType) {
+      // Try to get eventType from request body (parsed)
+      if (parsedBody && parsedBody.eventType) {
+        eventType = String(parsedBody.eventType).toLowerCase().trim();
+      }
+      // Try to get eventType from query parameters (parse from URL if req.query is empty)
+      else {
+        const queryParams = req.query && Object.keys(req.query).length > 0 
+          ? req.query 
+          : parseQuery(req.url || req.originalUrl);
+        if (queryParams.eventType) {
+          eventType = String(queryParams.eventType).toLowerCase().trim();
+        }
+        // Try to get eventType from headers (check both parsed headers and rawHeaders)
+        else {
+          const headerValue = req.headers?.['x-event-type'] || 
+                             req.headers?.['event-type'] ||
+                             getHeader('x-event-type') ||
+                             getHeader('event-type');
+          if (headerValue) {
+            eventType = String(headerValue).toLowerCase().trim();
+          }
+          // Try to detect from HTTP method (POST = create, PUT/PATCH = update, DELETE = delete)
+          else if (req.method) {
+            const method = req.method.toUpperCase();
+            if (method === 'DELETE') {
+              eventType = 'delete';
+            } else if (method === 'PUT' || method === 'PATCH') {
+              eventType = 'update';
+            } else if (method === 'POST') {
+              eventType = 'create';
+            }
+          }
+        }
+      }
+    }
+    
+    // Validate eventType and default to 'create' if not valid
+    const validEventTypes = ['create', 'delete', 'update'];
+    if (!eventType || !validEventTypes.includes(eventType)) {
+      console.warn(`Invalid or missing eventType: ${eventType}. Defaulting to 'create'`);
+      eventType = 'create';
+    }
+    
+    console.log(`Detected eventType: ${eventType} (method: ${req.method}, body: ${JSON.stringify(parsedBody)}, query: ${JSON.stringify(req.query || parseQuery(req.url || req.originalUrl))})`);
+
     // Prepare payload with detail.vendor = "GCP" for Step Function condition matching
     const payload = {
       detail: {
         vendor: "GCP",
+        eventType: eventType,
         projectId: projectId || project,
         projectNumber: projectNumber,
         serviceAccountName: awsServiceAccount,

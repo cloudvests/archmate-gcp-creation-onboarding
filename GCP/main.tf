@@ -140,6 +140,21 @@ resource "google_project_service" "artifactregistry" {
   service = "artifactregistry.googleapis.com"
 }
 
+resource "google_project_service" "eventarc" {
+  project = var.gcp_project_id
+  service = "eventarc.googleapis.com"
+}
+
+resource "google_project_service" "cloudasset" {
+  project = var.gcp_project_id
+  service = "cloudasset.googleapis.com"
+}
+
+resource "google_project_service" "logging" {
+  project = var.gcp_project_id
+  service = "logging.googleapis.com"
+}
+
 # Temporary bucket to host the Cloud Function source package.
 resource "random_id" "function_bucket_suffix" {
   byte_length = 4
@@ -211,8 +226,104 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
     google_project_service.cloudfunctions,
     google_project_service.run,
     google_project_service.artifactregistry,
+    google_project_service.eventarc,
+    google_project_service.cloudasset,
+    google_project_service.logging,
     google_storage_bucket_object.function_archive,
   ]
+}
+
+# Eventarc trigger for resource creation events (listens to Audit Logs)
+resource "google_eventarc_trigger" "resource_create" {
+  name     = "${var.cloud_function_name}-create-${random_id.cloud_function_suffix.hex}"
+  location = var.gcp_region
+  project  = var.gcp_project_id
+
+  matching_criteria {
+    attribute = "type"
+    value     = "google.cloud.audit.log.v1.written"
+  }
+
+  matching_criteria {
+    attribute = "methodName"
+    value     = "google.cloud.resourcemanager.v3.Projects.CreateProject"
+  }
+
+  destination {
+    cloud_function = google_cloudfunctions2_function.extract_and_send_info.name
+  }
+
+  service_account = google_service_account.aws_readonly_sa.email
+
+  depends_on = [
+    google_project_service.eventarc,
+    google_cloudfunctions2_function.extract_and_send_info,
+  ]
+}
+
+# Eventarc trigger for resource update events
+resource "google_eventarc_trigger" "resource_update" {
+  name     = "${var.cloud_function_name}-update-${random_id.cloud_function_suffix.hex}"
+  location = var.gcp_region
+  project  = var.gcp_project_id
+
+  matching_criteria {
+    attribute = "type"
+    value     = "google.cloud.audit.log.v1.written"
+  }
+
+  matching_criteria {
+    attribute = "methodName"
+    value     = "google.cloud.resourcemanager.v3.Projects.UpdateProject"
+  }
+
+  destination {
+    cloud_function = google_cloudfunctions2_function.extract_and_send_info.name
+  }
+
+  service_account = google_service_account.aws_readonly_sa.email
+
+  depends_on = [
+    google_project_service.eventarc,
+    google_cloudfunctions2_function.extract_and_send_info,
+  ]
+}
+
+# Eventarc trigger for resource deletion events
+resource "google_eventarc_trigger" "resource_delete" {
+  name     = "${var.cloud_function_name}-delete-${random_id.cloud_function_suffix.hex}"
+  location = var.gcp_region
+  project  = var.gcp_project_id
+
+  matching_criteria {
+    attribute = "type"
+    value     = "google.cloud.audit.log.v1.written"
+  }
+
+  matching_criteria {
+    attribute = "methodName"
+    value     = "google.cloud.resourcemanager.v3.Projects.DeleteProject"
+  }
+
+  destination {
+    cloud_function = google_cloudfunctions2_function.extract_and_send_info.name
+  }
+
+  service_account = google_service_account.aws_readonly_sa.email
+
+  depends_on = [
+    google_project_service.eventarc,
+    google_cloudfunctions2_function.extract_and_send_info,
+  ]
+}
+
+# Grant Eventarc service account permission to invoke the function
+resource "google_cloudfunctions2_function_iam_member" "eventarc_invoker" {
+  project        = google_cloudfunctions2_function.extract_and_send_info.project
+  location       = google_cloudfunctions2_function.extract_and_send_info.location
+  cloud_function = google_cloudfunctions2_function.extract_and_send_info.name
+  role           = "roles/cloudfunctions.invoker"
+  member         = "serviceAccount:${google_service_account.aws_readonly_sa.email}"
 }
 
 # Allow unauthenticated invocation (public HTTP trigger).

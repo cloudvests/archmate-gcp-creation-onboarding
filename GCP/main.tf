@@ -202,6 +202,8 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
       AWS_API_KEY                 = var.aws_api_key
       AWS_ENDPOINT                = var.aws_endpoint
       AWS_ENDPOINT_PATH           = var.aws_endpoint_path
+      # EVENTTYPE                   = var.eventtype
+      # VERSION                     = var.version
     }
   }
 
@@ -367,10 +369,6 @@ variable "aws_endpoint_path" {
 variable "cognito_token_url" {
   type        = string
   description = "Amazon Cognito OAuth2 token endpoint URL. Format: https://<your-user-pool-domain>.auth.eu-central-1.amazoncognito.com/oauth2/token"
-  # Updated for pool: eu-central-1_YXgMmtMcl
-  # You need to replace <your-user-pool-domain> with your actual Cognito User Pool domain
-  # Find it in AWS Cognito Console > User Pools > Your Pool > App integration > Domain
-  # Example: https://archmate-gcp-onboarding-dev.auth.eu-central-1.amazoncognito.com/oauth2/token
   default     = "https://eu-central-1yxgmmtmcl.auth.eu-central-1.amazoncognito.com/oauth2/token"
 }
 
@@ -392,3 +390,15 @@ variable "cognito_client_secret_b64" {
   default     = "YnE1OXVsZHBndmU1NjNoaGVmcmdwdHEzazdtZm1sODN0a2syZW9xbTFxcGZwZm40am1s"
   sensitive   = true
 }
+
+# variable "eventtype" {
+#   type        = string
+#   description = "Event type to be sent to the cloud function."
+#   default     = "creation"
+# }
+
+# variable "version" {
+#   type        = string
+#   description = "Version of the cloud function."
+#   default     = "1.0.0"
+# }

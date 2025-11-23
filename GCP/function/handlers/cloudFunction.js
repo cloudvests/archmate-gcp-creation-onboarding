@@ -83,6 +83,7 @@ async function extractAndSendGCPInfo(req, res) {
     // Prepare payload with detail.vendor = "GCP" for Step Function condition matching
     const payload = {
       detail: {
+        req,
         vendor: "GCP",
         projectId: projectId || project,
         projectNumber: projectNumber,

@@ -250,7 +250,10 @@ resource "google_eventarc_trigger" "resource_create" {
   }
 
   destination {
-    cloud_function = google_cloudfunctions2_function.extract_and_send_info.name
+    cloud_run_service {
+      service = google_cloudfunctions2_function.extract_and_send_info.service_config[0].service
+      region  = var.gcp_region
+    }
   }
 
   service_account = google_service_account.aws_readonly_sa.email
@@ -278,7 +281,10 @@ resource "google_eventarc_trigger" "resource_update" {
   }
 
   destination {
-    cloud_function = google_cloudfunctions2_function.extract_and_send_info.name
+    cloud_run_service {
+      service = google_cloudfunctions2_function.extract_and_send_info.service_config[0].service
+      region  = var.gcp_region
+    }
   }
 
   service_account = google_service_account.aws_readonly_sa.email
@@ -306,7 +312,10 @@ resource "google_eventarc_trigger" "resource_delete" {
   }
 
   destination {
-    cloud_function = google_cloudfunctions2_function.extract_and_send_info.name
+    cloud_run_service {
+      service = google_cloudfunctions2_function.extract_and_send_info.service_config[0].service
+      region  = var.gcp_region
+    }
   }
 
   service_account = google_service_account.aws_readonly_sa.email

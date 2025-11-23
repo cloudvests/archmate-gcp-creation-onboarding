@@ -68,7 +68,7 @@ resource "random_id" "pool_suffix" {
 }
 
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "archmate-aws-pool-read-only-${random_id.pool_suffix.hex}"
+  workload_identity_pool_id = "Archmate-aws-pool-read-only-${random_id.pool_suffix.hex}"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -77,7 +77,7 @@ resource "google_iam_workload_identity_pool" "aws_pool" {
 # 4️⃣ Create AWS Provider for the Pool
 resource "google_iam_workload_identity_pool_provider" "aws_provider" {
   workload_identity_pool_id          = google_iam_workload_identity_pool.aws_pool.workload_identity_pool_id
-  workload_identity_pool_provider_id = "aws-provider"
+  workload_identity_pool_provider_id = "Archmate-aws-provider"
   display_name                       = "AWS Provider"
   description                        = "Provider for AWS account"
 

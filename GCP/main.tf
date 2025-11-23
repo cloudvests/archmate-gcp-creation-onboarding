@@ -69,7 +69,7 @@ resource "random_id" "pool_suffix" {
 
 resource "google_iam_workload_identity_pool" "aws_pool" {
   workload_identity_pool_id = "archmate-aws-pool-read-only-${random_id.pool_suffix.hex}"
-  display_name              = "AWS Workload Identity Pool"
+  display_name              = "Archmate AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
 }

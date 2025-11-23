@@ -5,6 +5,8 @@ const { sendToAwsEndpoint, buildErrorDetails } = require('../services/aws-reques
 
 async function extractAndSendGCPInfo(req, res) {
   try {
+    console.log('data recieved from GCP:', JSON.stringify(req, null, 2));
+
     // Set CORS headers
     res.set('Access-Control-Allow-Origin', '*');
     res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -83,7 +85,6 @@ async function extractAndSendGCPInfo(req, res) {
     // Prepare payload with detail.vendor = "GCP" for Step Function condition matching
     const payload = {
       detail: {
-        req,
         vendor: "GCP",
         projectId: projectId || project,
         projectNumber: projectNumber,

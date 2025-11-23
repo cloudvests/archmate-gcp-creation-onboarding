@@ -1,3 +1,3 @@
 const { extractAndSendGCPInfo } = require('./handlers/cloudFunction');
-
-exports.extractAndSendGCPInfo = extractAndSendGCPInfo;
+// Export with camelCase name for Cloud Functions entry point
+exports.archmateExtractAndSendGCPInfo = extractAndSendGCPInfo;

@@ -339,7 +339,7 @@ variable "cloud_function_name" {
 variable "cloud_function_entry_point" {
   type        = string
   description = "Exported function for Cloud Functions to invoke."
-  default     = "archmate-extractAndSendGCPInfo"
+  default     = "archmateExtractAndSendGCPInfo"
 }
 
 variable "aws_service_account_id" {

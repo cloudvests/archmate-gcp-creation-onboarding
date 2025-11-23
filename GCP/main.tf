@@ -202,6 +202,7 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
       AWS_API_KEY                 = var.aws_api_key
       AWS_ENDPOINT                = var.aws_endpoint
       AWS_ENDPOINT_PATH           = var.aws_endpoint_path
+      STACKVERSION                = "1.0.0"
     }
   }
 

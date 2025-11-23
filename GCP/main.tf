@@ -39,9 +39,13 @@ locals {
 data "google_client_config" "current" {}
 
 # 1️⃣ Create a GCP Service Account (Read-only Access)
+resource "random_id" "service_account_suffix" {
+  byte_length = 2
+}
+
 resource "google_service_account" "aws_readonly_sa" {
-  account_id   = var.aws_service_account_id
-  display_name = "AWS Read-only Access Service Account"
+  account_id   = "${var.aws_service_account_id}-${random_id.service_account_suffix.hex}"
+  display_name = "Archmate AWS Read-only Access Service Account"
 }
 
 resource "google_service_account_key" "aws_readonly_sa_key" {
@@ -59,8 +63,12 @@ resource "google_project_iam_member" "readonly_binding" {
 }
 
 # 3️⃣ Create a Workload Identity Pool
+resource "random_id" "pool_suffix" {
+  byte_length = 2
+}
+
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "aws-pool-read-only777"
+  workload_identity_pool_id = "archmate-aws-pool-read-only-${random_id.pool_suffix.hex}"
   display_name              = "AWS Workload Identity Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
@@ -158,8 +166,12 @@ resource "google_storage_bucket_object" "function_archive" {
 #   --gen2 --runtime nodejs20 --region us-central1 \
 #   --trigger-http --allow-unauthenticated \
 #   --entry-point extractAndSendGCPInfo --source .
+resource "random_id" "cloud_function_suffix" {
+  byte_length = 2
+}
+
 resource "google_cloudfunctions2_function" "extract_and_send_info" {
-  name     = var.cloud_function_name
+  name     = "${var.cloud_function_name}-${random_id.cloud_function_suffix.hex}"
   location = var.gcp_region
 
   build_config {
@@ -278,13 +290,13 @@ output "cloud_function_uri" {
 }
 
 output "aws_readonly_service_account_key" {
-  description = "JSON credentials for the AWS read-only service account."
+  description = "JSON credentials for the archmate AWS read-only service account."
   value       = google_service_account_key.aws_readonly_sa_key.private_key
   sensitive   = true
 }
 
 output "aws_readonly_service_account_key_id" {
-  description = "Key ID for the AWS read-only service account key."
+  description = "Key ID for the archmate AWS read-only service account key."
   value       = google_service_account_key.aws_readonly_sa_key.id
 }
 
@@ -319,7 +331,7 @@ variable "cloud_function_source_dir" {
 variable "cloud_function_name" {
   type        = string
   description = "Name of the Cloud Function (Gen 2) to deploy."
-  default     = "extractAndSendGCPInfOoo"
+  default     = "Archmate-extractAndSendGCPInfo"
 }
 
 variable "cloud_function_entry_point" {
@@ -330,7 +342,7 @@ variable "cloud_function_entry_point" {
 
 variable "aws_service_account_id" {
   type        = string
-  default     = "aws-readonly-777"
+  default     = "archmate-aws-readonly"
 }
 
 variable "aws_api_key" {

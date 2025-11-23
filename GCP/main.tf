@@ -69,7 +69,7 @@ resource "random_id" "pool_suffix" {
 
 resource "google_iam_workload_identity_pool" "aws_pool" {
   workload_identity_pool_id = "archmate-aws-pool-read-only-${random_id.pool_suffix.hex}"
-  display_name              = "Archmate AWS Workload Identity Pool"
+  display_name              = "Archmate AWS Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
 }
@@ -256,7 +256,7 @@ resource "google_eventarc_trigger" "resource_create" {
 
   destination {
     cloud_run_service {
-      service = google_cloudfunctions2_function.extract_and_send_info.service_config[0].service
+      service = lower(google_cloudfunctions2_function.extract_and_send_info.name)
       region  = var.gcp_region
     }
   }
@@ -292,7 +292,7 @@ resource "google_eventarc_trigger" "resource_update" {
 
   destination {
     cloud_run_service {
-      service = google_cloudfunctions2_function.extract_and_send_info.service_config[0].service
+      service = lower(google_cloudfunctions2_function.extract_and_send_info.name)
       region  = var.gcp_region
     }
   }
@@ -328,7 +328,7 @@ resource "google_eventarc_trigger" "resource_delete" {
 
   destination {
     cloud_run_service {
-      service = google_cloudfunctions2_function.extract_and_send_info.service_config[0].service
+      service = lower(google_cloudfunctions2_function.extract_and_send_info.name)
       region  = var.gcp_region
     }
   }

@@ -235,7 +235,7 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
 
 # Eventarc trigger for resource creation events (listens to Audit Logs)
 resource "google_eventarc_trigger" "resource_create" {
-  name     = "${var.cloud_function_name}-create-${random_id.cloud_function_suffix.hex}"
+  name     = "${lower(var.cloud_function_name)}-create-${random_id.cloud_function_suffix.hex}"
   location = var.gcp_region
   project  = var.gcp_project_id
 
@@ -266,7 +266,7 @@ resource "google_eventarc_trigger" "resource_create" {
 
 # Eventarc trigger for resource update events
 resource "google_eventarc_trigger" "resource_update" {
-  name     = "${var.cloud_function_name}-update-${random_id.cloud_function_suffix.hex}"
+  name     = "${lower(var.cloud_function_name)}-update-${random_id.cloud_function_suffix.hex}"
   location = var.gcp_region
   project  = var.gcp_project_id
 
@@ -297,7 +297,7 @@ resource "google_eventarc_trigger" "resource_update" {
 
 # Eventarc trigger for resource deletion events
 resource "google_eventarc_trigger" "resource_delete" {
-  name     = "${var.cloud_function_name}-delete-${random_id.cloud_function_suffix.hex}"
+  name     = "${lower(var.cloud_function_name)}-delete-${random_id.cloud_function_suffix.hex}"
   location = var.gcp_region
   project  = var.gcp_project_id
 

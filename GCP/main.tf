@@ -45,7 +45,7 @@ resource "random_id" "service_account_suffix" {
 
 resource "google_service_account" "aws_readonly_sa" {
   account_id   = "${var.aws_service_account_id}-${random_id.service_account_suffix.hex}"
-  display_name = "Archmate AWS Read-only Access Service Account"
+  display_name = "archmate AWS Read-only Access Service Account"
 }
 
 resource "google_service_account_key" "aws_readonly_sa_key" {
@@ -68,8 +68,8 @@ resource "random_id" "pool_suffix" {
 }
 
 resource "google_iam_workload_identity_pool" "aws_pool" {
-  workload_identity_pool_id = "Archmate-aws-pool-read-only-${random_id.pool_suffix.hex}"
-  display_name              = "AWS Workload Identity Pool"
+  workload_identity_pool_id = "archmate-pool-read-only-${random_id.pool_suffix.hex}"
+  display_name              = "AWS Workload Pool"
   description               = "Pool to allow AWS access to GCP"
   # Note: optionally specify location = "global" (default) etc.
 }
@@ -77,7 +77,7 @@ resource "google_iam_workload_identity_pool" "aws_pool" {
 # 4️⃣ Create AWS Provider for the Pool
 resource "google_iam_workload_identity_pool_provider" "aws_provider" {
   workload_identity_pool_id          = google_iam_workload_identity_pool.aws_pool.workload_identity_pool_id
-  workload_identity_pool_provider_id = "Archmate-aws-provider"
+  workload_identity_pool_provider_id = "archmate-aws-provider"
   display_name                       = "AWS Provider"
   description                        = "Provider for AWS account"
 
@@ -331,7 +331,7 @@ variable "cloud_function_source_dir" {
 variable "cloud_function_name" {
   type        = string
   description = "Name of the Cloud Function (Gen 2) to deploy."
-  default     = "Archmate-extractAndSendGCPInfo"
+  default     = "archmate-extractAndSendGCPInfo"
 }
 
 variable "cloud_function_entry_point" {

@@ -62,6 +62,13 @@ resource "google_project_iam_member" "readonly_binding" {
   member  = "serviceAccount:${google_service_account.aws_readonly_sa.email}"
 }
 
+# Grant Eventarc Event Receiver role to service account for audit log events
+resource "google_project_iam_member" "eventarc_event_receiver" {
+  project = var.gcp_project_id
+  role    = "roles/eventarc.eventReceiver"
+  member  = "serviceAccount:${google_service_account.aws_readonly_sa.email}"
+}
+
 # 3️⃣ Create a Workload Identity Pool
 resource "random_id" "pool_suffix" {
   byte_length = 2

@@ -245,6 +245,11 @@ resource "google_eventarc_trigger" "resource_create" {
   }
 
   matching_criteria {
+    attribute = "serviceName"
+    value     = "cloudresourcemanager.googleapis.com"
+  }
+
+  matching_criteria {
     attribute = "methodName"
     value     = "google.cloud.resourcemanager.v3.Projects.CreateProject"
   }
@@ -276,6 +281,11 @@ resource "google_eventarc_trigger" "resource_update" {
   }
 
   matching_criteria {
+    attribute = "serviceName"
+    value     = "cloudresourcemanager.googleapis.com"
+  }
+
+  matching_criteria {
     attribute = "methodName"
     value     = "google.cloud.resourcemanager.v3.Projects.UpdateProject"
   }
@@ -304,6 +314,11 @@ resource "google_eventarc_trigger" "resource_delete" {
   matching_criteria {
     attribute = "type"
     value     = "google.cloud.audit.log.v1.written"
+  }
+
+  matching_criteria {
+    attribute = "serviceName"
+    value     = "cloudresourcemanager.googleapis.com"
   }
 
   matching_criteria {

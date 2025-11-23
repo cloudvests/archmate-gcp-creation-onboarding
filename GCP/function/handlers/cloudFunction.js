@@ -3,9 +3,30 @@ const { getProjectIdFromMetadata, getServiceAccountEmail, findServiceAccountStar
 const { getCognitoAccessToken } = require('../services/cognito');
 const { sendToAwsEndpoint, buildErrorDetails } = require('../services/aws-requests');
 
+/**
+ * Safely stringify an object, handling circular references
+ */
+function safeStringify(obj, space = 2) {
+  const seen = new WeakSet();
+  return JSON.stringify(obj, (key, val) => {
+    if (val != null && typeof val === 'object') {
+      if (seen.has(val)) {
+        return '[Circular]';
+      }
+      seen.add(val);
+    }
+    // Replace functions with their string representation
+    if (typeof val === 'function') {
+      return `[Function: ${val.name || 'anonymous'}]`;
+    }
+    return val;
+  }, space);
+}
+
 async function extractAndSendGCPInfo(req, res) {
   try {
-    console.log('data recieved from GCP:', JSON.stringify(req, null, 2));
+    // Log entire request object, handling circular references
+    console.log('data recieved from GCP:', safeStringify(req));
 
     // Set CORS headers
     res.set('Access-Control-Allow-Origin', '*');

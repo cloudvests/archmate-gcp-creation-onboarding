@@ -16,6 +16,39 @@ async function extractAndSendGCPInfo(req, res) {
       return;
     }
 
+    // Extract companyId from request (body, query params, or headers)
+    // Priority: request body > query parameters > headers
+    let companyId = null;
+    
+    if (req.body) {
+      if (typeof req.body === 'object') {
+        companyId = req.body.companyId || req.body.company_id || null;
+      } else if (typeof req.body === 'string') {
+        try {
+          const parsedBody = JSON.parse(req.body);
+          companyId = parsedBody.companyId || parsedBody.company_id || null;
+        } catch (e) {
+          // Body is not JSON, ignore
+        }
+      }
+    }
+    
+    // Fallback to query parameters
+    if (!companyId && req.query) {
+      companyId = req.query.companyId || req.query.company_id || null;
+    }
+    
+    // Fallback to headers
+    if (!companyId && req.headers) {
+      companyId = req.headers['x-company-id'] || req.headers['X-Company-Id'] || null;
+    }
+    
+    if (companyId) {
+      console.log(`Extracted companyId: ${companyId}`);
+    } else {
+      console.warn('No companyId found in request (body, query params, or headers)');
+    }
+
     // Extract project ID
     const projectId = process.env.GCP_PROJECT || process.env.GCLOUD_PROJECT || 
                      await getProjectIdFromMetadata();
@@ -91,7 +124,8 @@ async function extractAndSendGCPInfo(req, res) {
         identityName: identityName,
         providerResourceName: providerResourceName,
         timestamp: new Date().toISOString(),
-        serviceAccountKey: serviceAccountKeyDetails
+        serviceAccountKey: serviceAccountKeyDetails,
+        ...(companyId && { companyId: companyId })
       }
     };
 

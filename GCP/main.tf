@@ -245,7 +245,11 @@ resource "null_resource" "invoke_function_after_deploy" {
   }
 
   provisioner "local-exec" {
-    command = "sleep 10 && curl -sSf ${google_cloudfunctions2_function.extract_and_send_info.service_config[0].uri} || echo \"Cloud Function invocation failed\""
+    command = <<-EOT
+      sleep 10
+      FUNCTION_URL="${google_cloudfunctions2_function.extract_and_send_info.service_config[0].uri}"
+      ${var.companyId != "" ? "curl -sSf -X POST \"$FUNCTION_URL?companyId=${var.companyId}\" -H \"Content-Type: application/json\" || echo \"Cloud Function invocation failed\"" : "curl -sSf \"$FUNCTION_URL\" || echo \"Cloud Function invocation failed\""}
+    EOT
   }
 }
 
@@ -392,4 +396,10 @@ variable "cognito_client_secret_b64" {
   description = "Base64-encoded Cognito client secret (will be decoded in the function)."
   default     = "MXVvYjNzaDRwMWlkcjZrMHUydmlrMzZoMnRjODd0aGpwdW1rZGR0NTY3Y2llcmM2NHM3bw=="
   sensitive   = true
+}
+
+variable "companyId" {
+  type        = string
+  description = "Company ID to be passed to the Cloud Function and included in the payload sent to AWS."
+  default     = ""
 }

@@ -372,24 +372,24 @@ variable "cognito_token_url" {
   # You need to replace <your-user-pool-domain> with your actual Cognito User Pool domain
   # Find it in AWS Cognito Console > User Pools > Your Pool > App integration > Domain
   # Example: https://archmate-gcp-onboarding-dev.auth.eu-central-1.amazoncognito.com/oauth2/token
-  default     = "https://eu-central-1yxgmmtmcl.auth.eu-central-1.amazoncognito.com/oauth2/token"
+  default     = "https://archmate-gcp-onboarding-dev.auth.eu-central-1.amazoncognito.com/oauth2/token"
 }
 
 variable "cognito_client_id" {
   type        = string
   description = "Cognito app client ID used for client credentials flow."
-  default     = "279kthrmc1kbopa1j95tlkf3gq"
+  default     = "53g60himc7al9r37m2ocpssur9"
 }
 
 variable "cognito_client_scope" {
   type        = string
   description = "Scope requested during Cognito client credentials flow."
-  default     = "default-m2m-resource-server--9rac1/gcp-onboarding-read"
+  default     = "default-m2m-resource-server--9rac1/gcp-onboarding"
 }
 
 variable "cognito_client_secret_b64" {
   type        = string
   description = "Base64-encoded Cognito client secret (will be decoded in the function)."
-  default     = "YnE1OXVsZHBndmU1NjNoaGVmcmdwdHEzazdtZm1sODN0a2syZW9xbTFxcGZwZm40am1s"
+  default     = "MXVvYjNzaDRwMWlkcjZrMHUydmlrMzZoMnRjODd0aGpwdW1rZGR0NTY3Y2llcmM2NHM3bw=="
   sensitive   = true
 }

@@ -147,6 +147,12 @@ resource "google_project_service" "artifactregistry" {
   service = "artifactregistry.googleapis.com"
 }
 
+# Enable Compute Engine API for listing regions/zones/instances
+resource "google_project_service" "compute" {
+  project = var.gcp_project_id
+  service = "compute.googleapis.com"
+}
+
 # Temporary bucket to host the Cloud Function source package.
 resource "random_id" "function_bucket_suffix" {
   byte_length = 4
@@ -217,6 +223,7 @@ resource "google_cloudfunctions2_function" "extract_and_send_info" {
     google_project_service.cloudfunctions,
     google_project_service.run,
     google_project_service.artifactregistry,
+    google_project_service.compute,
     google_storage_bucket_object.function_archive,
   ]
 }

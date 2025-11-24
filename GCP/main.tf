@@ -62,6 +62,13 @@ resource "google_project_iam_member" "readonly_binding" {
   member  = "serviceAccount:${google_service_account.aws_readonly_sa.email}"
 }
 
+# Add Compute Viewer role for listing regions/zones/instances
+resource "google_project_iam_member" "compute_viewer_binding" {
+  project = var.gcp_project_id
+  role    = "roles/compute.viewer"
+  member  = "serviceAccount:${google_service_account.aws_readonly_sa.email}"
+}
+
 # 3️⃣ Create a Workload Identity Pool
 resource "random_id" "pool_suffix" {
   byte_length = 2

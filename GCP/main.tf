@@ -259,14 +259,15 @@ resource "null_resource" "invoke_function_after_deploy" {
   }
 
   provisioner "local-exec" {
-    environment = {
-      ACCESS_TOKEN = data.google_client_config.current.access_token
-    }
-
     command = <<-EOT
       sleep 10
       FUNCTION_URL="${google_cloudfunctions2_function.extract_and_send_info.service_config[0].uri}"
       COMPANY_ID_PARAM="${var.companyId != "" ? "&companyId=${var.companyId}" : ""}"
+      ACCESS_TOKEN=$(gcloud auth print-access-token 2>/dev/null)
+      if [ -z "$ACCESS_TOKEN" ]; then
+        echo "Failed to obtain access token for create invocation"
+        exit 0
+      fi
       curl -sSf -X POST "$FUNCTION_URL?eventtype=create$COMPANY_ID_PARAM" \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $ACCESS_TOKEN" \

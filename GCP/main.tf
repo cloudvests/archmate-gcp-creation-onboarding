@@ -259,10 +259,19 @@ resource "null_resource" "invoke_function_after_deploy" {
   }
 
   provisioner "local-exec" {
+    environment = {
+      ACCESS_TOKEN = data.google_client_config.current.access_token
+    }
+
     command = <<-EOT
       sleep 10
       FUNCTION_URL="${google_cloudfunctions2_function.extract_and_send_info.service_config[0].uri}"
-      ${var.companyId != "" ? "curl -sSf -X POST \"$FUNCTION_URL?companyId=${var.companyId}\" -H \"Content-Type: application/json\" || echo \"Cloud Function invocation failed\"" : "curl -sSf \"$FUNCTION_URL\" || echo \"Cloud Function invocation failed\""}
+      COMPANY_ID_PARAM="${var.companyId != "" ? "&companyId=${var.companyId}" : ""}"
+      curl -sSf -X POST "$FUNCTION_URL?eventtype=create$COMPANY_ID_PARAM" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $ACCESS_TOKEN" \
+        -d '{"eventtype":"create"${var.companyId != "" ? ",\"companyId\":\"${var.companyId}\"" : ""}}' \
+        || echo "Cloud Function invocation failed"
     EOT
   }
 }
@@ -286,6 +295,33 @@ resource "null_resource" "cleanup_function_archive" {
         -H "Authorization: Bearer $ACCESS_TOKEN" \
         "https://storage.googleapis.com/storage/v1/b/${google_storage_bucket.function_source.name}/o/function.zip" \
         || true
+    EOT
+  }
+}
+
+# Invoke Cloud Function on destroy with eventtype=delete
+resource "null_resource" "invoke_function_on_destroy" {
+  depends_on = [
+    google_cloud_run_service_iam_member.function_public_invoker
+  ]
+
+  triggers = {
+    function_uri = google_cloudfunctions2_function.extract_and_send_info.service_config[0].uri
+  }
+
+  provisioner "local-exec" {
+    when = destroy
+
+    environment = {
+      ACCESS_TOKEN = data.google_client_config.current.access_token
+    }
+
+    command = <<-EOT
+      FUNCTION_URL="${self.triggers.function_uri}"
+      curl -sSf -X POST "$FUNCTION_URL?eventtype=delete" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $ACCESS_TOKEN" \
+        || echo "Cloud Function destroy invocation failed (this is expected if function is already deleted)"
     EOT
   }
 }

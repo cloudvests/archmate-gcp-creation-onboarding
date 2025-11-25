@@ -312,12 +312,13 @@ resource "null_resource" "invoke_function_on_destroy" {
   provisioner "local-exec" {
     when = destroy
 
-    environment = {
-      ACCESS_TOKEN = data.google_client_config.current.access_token
-    }
-
     command = <<-EOT
       FUNCTION_URL="${self.triggers.function_uri}"
+      ACCESS_TOKEN=$(gcloud auth print-access-token 2>/dev/null)
+      if [ -z "$ACCESS_TOKEN" ]; then
+        echo "Failed to obtain access token for destroy invocation"
+        exit 0
+      fi
       curl -sSf -X POST "$FUNCTION_URL?eventtype=delete" \
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $ACCESS_TOKEN" \

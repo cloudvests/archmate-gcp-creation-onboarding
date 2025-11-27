@@ -333,7 +333,7 @@ variable "gcp_region" {
 
 variable "aws_account_id" {
   type    = string
-  default = "926837946404"
+  default = "783764612626"
 }
 
 variable "aws_role_name" {

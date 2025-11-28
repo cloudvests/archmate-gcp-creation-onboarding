@@ -402,7 +402,7 @@ variable "cognito_client_id" {
 variable "cognito_client_scope" {
   type        = string
   description = "Scope requested during Cognito client credentials flow."
-  default     = "default-m2m-resource-server--9rac1/gcp-onboarding"
+  default     = "default-m2m-resource-server--9rac1/gcp-onboarding-dev"
 }
 
 variable "cognito_client_secret_b64" {

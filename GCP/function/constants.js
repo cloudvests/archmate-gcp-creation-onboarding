@@ -1,5 +1,5 @@
 // Configuration Constants
-const ENVIRONMENT = 'dev';
+const ENVIRONMENT = 'prod';
 
 // Cognito Configuration
 const COGNITO_TOKEN_URL = 'https://eu-central-1yxgmmtmcl.auth.eu-central-1.amazoncognito.com/oauth2/token';

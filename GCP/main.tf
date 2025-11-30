@@ -380,7 +380,7 @@ variable "aws_endpoint" {
 variable "aws_endpoint_path" {
   type        = string
   description = "Optional path to append to the AWS endpoint base URL."
-  default     = "/dev/run-assessment"
+  default     = "/prod/run-assessment"
 }
 
 variable "cognito_token_url" {

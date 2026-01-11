@@ -323,6 +323,7 @@ output "aws_readonly_service_account_key_id" {
 # 🔹 Variables
 variable "gcp_project_id" {
   type    = string
+  default = "my-projectmohammadnour"
 }
 
 variable "gcp_region" {
@@ -332,6 +333,7 @@ variable "gcp_region" {
 
 variable "aws_account_id" {
   type    = string
+  default = "783764612626"
 }
 
 variable "aws_role_name" {

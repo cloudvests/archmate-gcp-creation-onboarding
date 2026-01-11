@@ -2,7 +2,7 @@
 const ENVIRONMENT = 'dev';
 
 // Cognito Configuration
-const COGNITO_TOKEN_URL = 'https://eu-central-1_iGIvitu1C.auth.eu-central-1.amazoncognito.com/oauth2/token';
+const COGNITO_TOKEN_URL = 'https://archmate-gcp-onboarding-dev.auth.eu-central-1.amazoncognito.com/oauth2/token';
 const COGNITO_CLIENT_ID = '53g60himc7al9r37m2ocpssur9';
 const COGNITO_CLIENT_SECRET_B64 = '1uob3sh4p1idr6k0u2vik36h2tc87thjpumkddt567cierc64s7o';
 

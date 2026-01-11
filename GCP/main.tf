@@ -390,7 +390,7 @@ variable "cognito_token_url" {
   # You need to replace <your-user-pool-domain> with your actual Cognito User Pool domain
   # Find it in AWS Cognito Console > User Pools > Your Pool > App integration > Domain
   # Example: https://archmate-gcp-onboarding-dev.auth.eu-central-1.amazoncognito.com/oauth2/token
-  default     = "https://eu-central-1_iGIvitu1C.auth.eu-central-1.amazoncognito.com/oauth2/token"
+  default     = "https://archmate-gcp-onboarding-dev.auth.eu-central-1.amazoncognito.com/oauth2/token"
 }
 
 variable "cognito_client_id" {

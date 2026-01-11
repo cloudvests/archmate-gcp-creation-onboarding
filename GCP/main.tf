@@ -323,7 +323,6 @@ output "aws_readonly_service_account_key_id" {
 # 🔹 Variables
 variable "gcp_project_id" {
   type    = string
-  default = "my-projectmohammadnour"
 }
 
 variable "gcp_region" {
@@ -333,7 +332,6 @@ variable "gcp_region" {
 
 variable "aws_account_id" {
   type    = string
-  default = "783764612626"
 }
 
 variable "aws_role_name" {
@@ -374,13 +372,13 @@ variable "aws_api_key" {
 variable "aws_endpoint" {
   type        = string
   description = "Base URL of the AWS API endpoint to call."
-  default     = "https://nmrhp26ra7.execute-api.eu-central-1.amazonaws.com"
+  default     = "https://zspu86b2d7.execute-api.eu-central-1.amazonaws.com/dev"
 }
 
 variable "aws_endpoint_path" {
   type        = string
   description = "Optional path to append to the AWS endpoint base URL."
-  default     = "/prod/run-assessment"
+  default     = "/dev/run-assessment"
 }
 
 variable "cognito_token_url" {
@@ -390,25 +388,25 @@ variable "cognito_token_url" {
   # You need to replace <your-user-pool-domain> with your actual Cognito User Pool domain
   # Find it in AWS Cognito Console > User Pools > Your Pool > App integration > Domain
   # Example: https://archmate-gcp-onboarding-dev.auth.eu-central-1.amazoncognito.com/oauth2/token
-  default     = "https://archmate-gcp-onboarding-prod.auth.eu-central-1.amazoncognito.com/oauth2/token"
+  default     = "https://eu-central-1_iGIvitu1C.auth.eu-central-1.amazoncognito.com/oauth2/token"
 }
 
 variable "cognito_client_id" {
   type        = string
   description = "Cognito app client ID used for client credentials flow."
-  default     = "1qs47ffvku813tulfs1jt90j05"
+  default     = "53g60himc7al9r37m2ocpssur9"
 }
 
 variable "cognito_client_scope" {
   type        = string
   description = "Scope requested during Cognito client credentials flow."
-  default     = "default-m2m-resource-server--9rac1/gcp-onboarding-prod"
+  default     = "default-m2m-resource-server--9rac1/gcp-onboarding-dev"
 }
 
 variable "cognito_client_secret_b64" {
   type        = string
   description = "Base64-encoded Cognito client secret (will be decoded in the function)."
-  default     = "MjltbGRlZG5tN2YwZnU4OG40OGhhYzFyMXZzZHExdGE5bHQ5bDdhY3ZkcWpnNGRiczFl"
+  default     = "1uob3sh4p1idr6k0u2vik36h2tc87thjpumkddt567cierc64s7o"
   sensitive   = true
 }
 
